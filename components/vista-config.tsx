@@ -232,7 +232,7 @@ export function VistaConfig() {
                 <th className="text-right px-2 py-2 font-semibold">Ticket base</th>
                 <th className="text-right px-2 py-2 font-semibold">Ticket override</th>
                 <th className="text-right px-2 py-2 font-semibold">Margen base</th>
-                <th className="text-right px-4 py-2 font-semibold">Margen override</th>
+                <th className="text-right px-4 py-2 font-semibold">Margen override (%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -269,18 +269,29 @@ export function VistaConfig() {
                       <div className="flex items-center justify-end gap-1">
                         <input
                           type="number"
-                          step={0.01}
+                          step={1}
                           min={0}
-                          max={1}
+                          max={100}
                           placeholder="—"
                           className={cn(INPUT_CLASS, 'text-right w-20')}
-                          value={ov.margen ?? ''}
+                          value={
+                            ov.margen !== undefined
+                              ? Math.round(ov.margen * 1000) / 10
+                              : ''
+                          }
                           onChange={(e) => {
-                            const v = e.target.value === '' ? undefined : Number(e.target.value);
-                            setProcDraft(p.id, 'margen', Number.isFinite(v) ? v : undefined);
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              setProcDraft(p.id, 'margen', undefined);
+                              return;
+                            }
+                            const v = Number(raw);
+                            if (!Number.isFinite(v)) return;
+                            const clamped = Math.max(0, Math.min(100, v));
+                            setProcDraft(p.id, 'margen', clamped / 100);
                           }}
                         />
-                        <span className="text-xs text-slate-400">0–1</span>
+                        <span className="text-xs text-slate-400">%</span>
                       </div>
                     </td>
                   </tr>
