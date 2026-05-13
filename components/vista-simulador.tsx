@@ -7,6 +7,7 @@ import {
   calcImpactoVsGUA,
   calcKPIs,
   generarDatosFiltro,
+  identificarCandidatos,
   type ProcEnriquecido,
 } from '@/lib/calc';
 import {
@@ -58,6 +59,7 @@ export function VistaSimulador() {
   } | null>(null);
   const [intencionFiltro, setIntencionFiltro] = useState<IntencionPaquete | 'todas'>('todas');
   const [paquetesAbierto, setPaquetesAbierto] = useState(false);
+  const [candidatosAbierto, setCandidatosAbierto] = useState(false);
   const [metaFormAbierto, setMetaFormAbierto] = useState(false);
   const [metaNombre, setMetaNombre] = useState('');
   const [metaFechaObjetivo, setMetaFechaObjetivo] = useState('');
@@ -87,6 +89,7 @@ export function VistaSimulador() {
   const paquetesFiltrados = paquetesResultados.filter((r) =>
     intencionFiltro === 'todas' ? true : r.paquete.intencion === intencionFiltro,
   );
+  const candidatos = useMemo(() => identificarCandidatos(datos), [datos]);
 
   const procsConCambios: ProcEnriquecido[] = ordenado.filter(
     (p) => (state.simulacion[p.id] ?? 0) !== 0,
@@ -480,6 +483,127 @@ export function VistaSimulador() {
             );
           })}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Candidatos a push (colapsable) */}
+      <div className="bg-white border border-slate-200 rounded-lg mb-5">
+        <button
+          type="button"
+          onClick={() => setCandidatosAbierto((v) => !v)}
+          className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition rounded-lg"
+          aria-expanded={candidatosAbierto}
+        >
+          <div className="text-left">
+            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span className="text-slate-400 text-xs">{candidatosAbierto ? '▼' : '▶'}</span>
+              Candidatos a push
+              <span className="text-xs font-normal text-slate-500">
+                ({candidatos.length} identificados)
+              </span>
+            </h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Procedimientos individuales con alto margen y bajo ticket. Agrégalos uno por uno a la
+              simulación.
+            </p>
+          </div>
+          <span className="text-xs text-indigo-600 font-semibold whitespace-nowrap">
+            {candidatosAbierto ? 'Ocultar' : 'Ver candidatos'}
+          </span>
+        </button>
+        {candidatosAbierto && (
+          <div className="border-t border-slate-200 p-4">
+            {candidatos.length === 0 ? (
+              <div className="text-center py-6 text-slate-500 text-sm">
+                No se identificaron candidatos con los filtros actuales. Prueba con otra combinación.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {candidatos.map((p, i) => {
+                  const proyMontoMedioSiDoble =
+                    (kActual.totalMonto + p.casos * p.ticket) / (kActual.totalCasos + p.casos);
+                  const deltaMontoMedio = proyMontoMedioSiDoble - kActual.montoMedio;
+                  const pctDelta = (deltaMontoMedio / kActual.montoMedio) * 100;
+                  return (
+                    <div
+                      key={`${p.especialidadId}:${p.id}`}
+                      className="border border-slate-200 rounded-lg p-3 bg-white hover:border-indigo-300 hover:shadow-sm transition"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide">
+                            #{i + 1} candidato
+                          </div>
+                          <div className="font-semibold text-sm text-slate-900 mt-0.5">
+                            {p.nombre}
+                          </div>
+                          {esTodas && (
+                            <div className="text-[10px] text-slate-600 mt-0.5">
+                              {ESPECIALIDADES[p.especialidadId]}
+                            </div>
+                          )}
+                          <div className="text-[10px] text-slate-500 tabular-nums mt-0.5">
+                            CIE-9 <span className="font-semibold text-slate-700">{p.cie9}</span>
+                            <span className="text-slate-300 mx-1">·</span>
+                            CIE-10 <span className="font-semibold text-slate-700">{p.cie10}</span>
+                          </div>
+                        </div>
+                        <Badge tone="emerald">{fmtPct(p.margen)} margen</Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                        <div className="bg-slate-50 rounded p-2">
+                          <div className="text-slate-500 mb-0.5">Casos actuales</div>
+                          <div className="font-semibold tabular-nums text-slate-900">
+                            {p.casos}
+                          </div>
+                        </div>
+                        <div className="bg-slate-50 rounded p-2">
+                          <div className="text-slate-500 mb-0.5">Ticket</div>
+                          <div className="font-semibold tabular-nums text-slate-900">
+                            {fmtMXNCompact(p.ticket)}
+                          </div>
+                        </div>
+                        <div className="bg-slate-50 rounded p-2">
+                          <div className="text-slate-500 mb-0.5">Margen total</div>
+                          <div className="font-semibold tabular-nums text-slate-900">
+                            {fmtMXNCompact(p.margen_total)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pt-2 border-t border-slate-100 text-xs leading-relaxed mb-2">
+                        <div className="text-slate-600">
+                          Si <strong>duplicas el volumen</strong> a {p.casos * 2} casos:
+                        </div>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span
+                            className={cn(
+                              'font-medium tabular-nums',
+                              pctDelta < 0 ? 'text-emerald-700' : 'text-red-700',
+                            )}
+                          >
+                            {pctDelta < 0 ? '▼' : '▲'} {Math.abs(pctDelta).toFixed(1)}% monto medio
+                          </span>
+                          <span className="text-emerald-700 font-medium tabular-nums">
+                            ▲ {fmtMXNCompact(p.potencial_doble)} margen adicional
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() =>
+                          dispatch({ type: 'ADD_TO_SIM', procId: p.id, delta: p.casos })
+                        }
+                      >
+                        Agregar a la simulación (+{p.casos} casos)
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

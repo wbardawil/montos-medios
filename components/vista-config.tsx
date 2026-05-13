@@ -118,6 +118,7 @@ export function VistaConfig() {
   const [nuevaAseguradoraPerfil, setNuevaAseguradoraPerfil] =
     useState<PerfilAseguradora>({ ...DEFAULT_PERFIL });
   const [addError, setAddError] = useState('');
+  const [agregarAsegAbierto, setAgregarAsegAbierto] = useState(false);
 
   useEffect(() => {
     setDraft(state.overrides);
@@ -409,75 +410,90 @@ export function VistaConfig() {
           </div>
         )}
 
-        <div className="border-t border-slate-200 pt-3 mt-3">
-          <div className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">
-            Agregar aseguradora nueva
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
-            <div>
-              <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                Nombre comercial
-              </label>
-              <input
-                type="text"
-                placeholder="Ej. Sura Salud, Bupa, etc."
-                className={INPUT_CLASS}
-                value={nuevaAseguradoraNombre}
-                onChange={(e) => {
-                  setNuevaAseguradoraNombre(e.target.value);
-                  if (!nuevaAseguradoraId) {
-                    setNuevaAseguradoraId(slugifyAseguradora(e.target.value));
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                ID (kebab/snake)
-              </label>
-              <input
-                type="text"
-                placeholder="auto desde el nombre"
-                className={INPUT_CLASS}
-                value={nuevaAseguradoraId}
-                onChange={(e) => setNuevaAseguradoraId(slugifyAseguradora(e.target.value))}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            {(['alta', 'media', 'baja'] as const).map((cmp) => (
-              <div key={cmp}>
-                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                  Perfil {cmp}
-                </label>
-                <input
-                  type="number"
-                  step={0.1}
-                  min={0}
-                  max={3}
-                  className={cn(INPUT_CLASS, 'text-right')}
-                  value={nuevaAseguradoraPerfil[cmp]}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isFinite(v)) return;
-                    setNuevaAseguradoraPerfil((p) => ({
-                      ...p,
-                      [cmp]: Math.max(0, Math.min(3, v)),
-                    }));
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={handleAgregarAseguradora}>
-              Agregar al borrador
-            </Button>
-            {addError && <span className="text-xs text-red-600">⚠ {addError}</span>}
-            <span className="text-[10px] text-slate-500">
-              No olvides darle <strong>Guardar cambios</strong> arriba.
+        <div className="border-t border-slate-200 mt-3 pt-3">
+          <button
+            type="button"
+            onClick={() => setAgregarAsegAbierto((v) => !v)}
+            className="w-full flex items-center justify-between hover:bg-slate-50 transition rounded px-1 py-1"
+            aria-expanded={agregarAsegAbierto}
+          >
+            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-2">
+              <span className="text-slate-400">{agregarAsegAbierto ? '▼' : '▶'}</span>
+              Agregar aseguradora nueva
             </span>
-          </div>
+            <span className="text-xs text-indigo-600 font-semibold">
+              {agregarAsegAbierto ? 'Ocultar formulario' : 'Mostrar formulario'}
+            </span>
+          </button>
+          {agregarAsegAbierto && (
+            <div className="mt-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    Nombre comercial
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Sura Salud, Bupa, etc."
+                    className={INPUT_CLASS}
+                    value={nuevaAseguradoraNombre}
+                    onChange={(e) => {
+                      setNuevaAseguradoraNombre(e.target.value);
+                      if (!nuevaAseguradoraId) {
+                        setNuevaAseguradoraId(slugifyAseguradora(e.target.value));
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    ID (kebab/snake)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="auto desde el nombre"
+                    className={INPUT_CLASS}
+                    value={nuevaAseguradoraId}
+                    onChange={(e) => setNuevaAseguradoraId(slugifyAseguradora(e.target.value))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {(['alta', 'media', 'baja'] as const).map((cmp) => (
+                  <div key={cmp}>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                      Perfil {cmp}
+                    </label>
+                    <input
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      max={3}
+                      className={cn(INPUT_CLASS, 'text-right')}
+                      value={nuevaAseguradoraPerfil[cmp]}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (!Number.isFinite(v)) return;
+                        setNuevaAseguradoraPerfil((p) => ({
+                          ...p,
+                          [cmp]: Math.max(0, Math.min(3, v)),
+                        }));
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="outline" size="sm" onClick={handleAgregarAseguradora}>
+                  Agregar al borrador
+                </Button>
+                {addError && <span className="text-xs text-red-600">⚠ {addError}</span>}
+                <span className="text-[10px] text-slate-500">
+                  No olvides darle <strong>Guardar cambios</strong> arriba.
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

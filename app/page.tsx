@@ -4,7 +4,6 @@ import { FilterBar } from '@/components/filter-bar';
 import { Header } from '@/components/header';
 import { KPICards } from '@/components/kpi-cards';
 import { Tabs } from '@/components/tabs';
-import { VistaCandidatos } from '@/components/vista-candidatos';
 import { VistaConfig } from '@/components/vista-config';
 import { VistaDashboard } from '@/components/vista-dashboard';
 import { VistaMetas } from '@/components/vista-metas';
@@ -24,7 +23,6 @@ export default function Page() {
           <Tabs />
           <div className="p-5">
             {state.tab === 'mezcla' && <VistaMezcla />}
-            {state.tab === 'candidatos' && <VistaCandidatos />}
             {state.tab === 'simulador' && <VistaSimulador />}
             {state.tab === 'dashboard' && <VistaDashboard />}
             {state.tab === 'metas' && <VistaMetas />}

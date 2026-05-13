@@ -19,7 +19,7 @@ import type { PerfilAseguradora } from './data/perfiles';
 import type { Periodo, Simulacion } from './calc';
 import type { MetaComercial } from './metas';
 
-export type TabId = 'mezcla' | 'candidatos' | 'simulador' | 'dashboard' | 'metas' | 'config';
+export type TabId = 'mezcla' | 'simulador' | 'dashboard' | 'metas' | 'config';
 export type EspecialidadFiltro = EspecialidadId | 'todas';
 
 export const isTodasEspecialidades = (e: EspecialidadFiltro): e is 'todas' => e === 'todas';
