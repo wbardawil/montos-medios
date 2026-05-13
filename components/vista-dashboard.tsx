@@ -141,7 +141,7 @@ export function VistaDashboard() {
               <span className="inline-block w-3 h-3 bg-red-600 rounded-sm" /> &gt;15% sobre GUA
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 bg-amber-400 rounded-sm" /> GUA referencia
+              <span className="inline-block w-3 h-3 bg-slate-400 rounded-sm" /> GUA referencia
             </span>
           </div>
         </div>
@@ -188,7 +188,7 @@ export function VistaDashboard() {
                 );
               })}
             </Bar>
-            <Bar dataKey="gua" fill="#fbbf24" name="GUA" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="gua" fill="#94a3b8" name="GUA" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
