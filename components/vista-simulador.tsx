@@ -16,6 +16,7 @@ import {
   type ObjetivoOptimizacion,
 } from '@/lib/optimizer';
 import { evaluarPaquetes, type IntencionPaquete } from '@/lib/paquetes';
+import { nuevoMetaId, type MetaKPIs } from '@/lib/metas';
 import { fmtMXN, fmtMXNCompact, fmtPct } from '@/lib/format';
 import { useAppState, useAseguradoras } from '@/lib/state';
 import { Badge } from './ui/badge';
@@ -56,6 +57,12 @@ export function VistaSimulador() {
     cambios: number;
   } | null>(null);
   const [intencionFiltro, setIntencionFiltro] = useState<IntencionPaquete | 'todas'>('todas');
+  const [paquetesAbierto, setPaquetesAbierto] = useState(false);
+  const [metaFormAbierto, setMetaFormAbierto] = useState(false);
+  const [metaNombre, setMetaNombre] = useState('');
+  const [metaFechaObjetivo, setMetaFechaObjetivo] = useState('');
+  const [metaNotas, setMetaNotas] = useState('');
+  const [metaFeedback, setMetaFeedback] = useState('');
 
   const esTodas = state.especialidad === 'todas';
   const datos = generarDatosFiltro(
@@ -89,6 +96,49 @@ export function VistaSimulador() {
     const r = optimizar(datos, config);
     dispatch({ type: 'SET_SIM', sim: r.simulacion });
     setUltimoResultado({ iteraciones: r.iteraciones, cambios: r.cambiosAplicados });
+  };
+
+  const toMetaKPIs = (k: typeof kActual): MetaKPIs => ({
+    totalCasos: k.totalCasos,
+    totalMonto: k.totalMonto,
+    totalMargen: k.totalMargen,
+    montoMedio: k.montoMedio,
+    margenPct: k.margenPct,
+  });
+
+  const handleGuardarMeta = () => {
+    const nombre = metaNombre.trim();
+    if (!nombre) {
+      setMetaFeedback('Falta el nombre de la meta');
+      return;
+    }
+    const fechaObjetivo = metaFechaObjetivo
+      ? new Date(metaFechaObjetivo).getTime()
+      : undefined;
+    dispatch({
+      type: 'ADD_META',
+      meta: {
+        id: nuevoMetaId(),
+        nombre,
+        createdAt: Date.now(),
+        fechaObjetivo: Number.isFinite(fechaObjetivo) ? fechaObjetivo : undefined,
+        aseguradoraId: state.aseguradora,
+        especialidad: state.especialidad,
+        periodo: state.periodo,
+        simulacionSnapshot: { ...state.simulacion },
+        kpiBaseline: toMetaKPIs(kActual),
+        kpiObjetivo: toMetaKPIs(kSim),
+        notas: metaNotas.trim() || undefined,
+      },
+    });
+    setMetaFeedback(`✓ Meta "${nombre}" guardada`);
+    setMetaNombre('');
+    setMetaFechaObjetivo('');
+    setMetaNotas('');
+    setTimeout(() => {
+      setMetaFeedback('');
+      setMetaFormAbierto(false);
+    }, 2000);
   };
 
   return (
@@ -218,11 +268,82 @@ export function VistaSimulador() {
             </p>
           </div>
           {tieneSim && (
-            <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'RESET_SIM' })}>
-              Limpiar todo
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMetaFormAbierto((v) => !v)}
+              >
+                {metaFormAbierto ? 'Cancelar' : 'Guardar como meta'}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'RESET_SIM' })}>
+                Limpiar todo
+              </Button>
+            </div>
           )}
         </div>
+        {tieneSim && metaFormAbierto && (
+          <div className="mb-3 p-3 border border-indigo-200 bg-indigo-50/40 rounded-md">
+            <div className="text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">
+              Guardar esta simulación como meta comercial
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  Nombre de la meta
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Meta Q3 GNP Ortopedia"
+                  className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+                  value={metaNombre}
+                  onChange={(e) => setMetaNombre(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  Fecha objetivo (opcional)
+                </label>
+                <input
+                  type="date"
+                  className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+                  value={metaFechaObjetivo}
+                  onChange={(e) => setMetaFechaObjetivo(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mb-2">
+              <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                Notas (opcional)
+              </label>
+              <input
+                type="text"
+                placeholder="Notas para reunión, justificación, etc."
+                className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+                value={metaNotas}
+                onChange={(e) => setMetaNotas(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" onClick={handleGuardarMeta}>
+                Guardar meta
+              </Button>
+              {metaFeedback && (
+                <span
+                  className={cn(
+                    'text-xs font-semibold',
+                    metaFeedback.startsWith('✓') ? 'text-emerald-700' : 'text-red-600',
+                  )}
+                >
+                  {metaFeedback}
+                </span>
+              )}
+              <span className="text-[10px] text-slate-500">
+                Después la revisas en la pestaña <strong>Metas</strong>.
+              </span>
+            </div>
+          </div>
+        )}
         {tieneSim && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {procsConCambios.map((p) => {
@@ -255,34 +376,51 @@ export function VistaSimulador() {
         )}
       </div>
 
-      {/* Paquetes pre-armados */}
-      <div className="bg-white border border-indigo-200 rounded-lg p-4 mb-5">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900">Paquetes pre-armados</h4>
-            <p className="text-xs text-slate-600 mt-0.5">
-              Aplicaciones de mezcla curadas según la intención. Click para ver el detalle y aplicarlo.
+      {/* Paquetes pre-armados (colapsable) */}
+      <div className="bg-white border border-slate-200 rounded-lg mb-5">
+        <button
+          type="button"
+          onClick={() => setPaquetesAbierto((v) => !v)}
+          className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition rounded-lg"
+          aria-expanded={paquetesAbierto}
+        >
+          <div className="text-left">
+            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span className="text-slate-400 text-xs">{paquetesAbierto ? '▼' : '▶'}</span>
+              Paquetes pre-armados
+              <span className="text-xs font-normal text-slate-500">
+                ({paquetesResultados.length} disponibles)
+              </span>
+            </h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Plays comerciales con nombre. Aplica una estrategia completa en un click.
             </p>
           </div>
-          <div className="flex items-center gap-1 flex-wrap">
-            {(['todas', 'bajar', 'subir', 'margen'] as const).map((id) => (
-              <button
-                key={id}
-                onClick={() => setIntencionFiltro(id)}
-                className={cn(
-                  'px-2.5 py-1 text-xs font-semibold rounded border',
-                  intencionFiltro === id
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50',
-                )}
-              >
-                {id === 'todas' ? 'Todos' : INTENCION_LABELS[id]}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {paquetesFiltrados.map((r) => {
+          <span className="text-xs text-indigo-600 font-semibold whitespace-nowrap">
+            {paquetesAbierto ? 'Ocultar' : 'Ver paquetes'}
+          </span>
+        </button>
+        {paquetesAbierto && (
+          <div className="border-t border-slate-200 p-4">
+            <div className="flex items-center gap-1 flex-wrap mb-3">
+              <span className="text-xs text-slate-500 mr-1">Filtrar por intención:</span>
+              {(['todas', 'bajar', 'subir', 'margen'] as const).map((id) => (
+                <button
+                  key={id}
+                  onClick={() => setIntencionFiltro(id)}
+                  className={cn(
+                    'px-2.5 py-1 text-xs font-semibold rounded border',
+                    intencionFiltro === id
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50',
+                  )}
+                >
+                  {id === 'todas' ? 'Todos' : INTENCION_LABELS[id]}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {paquetesFiltrados.map((r) => {
             const bajaMonto = r.deltaMontoMedio < 0;
             const subeMargen = r.deltaMargen > 0;
             return (
@@ -341,7 +479,9 @@ export function VistaSimulador() {
               </div>
             );
           })}
-        </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Optimizador */}

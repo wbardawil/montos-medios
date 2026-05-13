@@ -7,6 +7,7 @@ import { Tabs } from '@/components/tabs';
 import { VistaCandidatos } from '@/components/vista-candidatos';
 import { VistaConfig } from '@/components/vista-config';
 import { VistaDashboard } from '@/components/vista-dashboard';
+import { VistaMetas } from '@/components/vista-metas';
 import { VistaMezcla } from '@/components/vista-mezcla';
 import { VistaSimulador } from '@/components/vista-simulador';
 import { useAppState } from '@/lib/state';
@@ -26,6 +27,7 @@ export default function Page() {
             {state.tab === 'candidatos' && <VistaCandidatos />}
             {state.tab === 'simulador' && <VistaSimulador />}
             {state.tab === 'dashboard' && <VistaDashboard />}
+            {state.tab === 'metas' && <VistaMetas />}
             {state.tab === 'config' && <VistaConfig />}
           </div>
         </div>

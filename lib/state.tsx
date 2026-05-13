@@ -17,8 +17,9 @@ import {
 import type { EspecialidadId } from './data/especialidades';
 import type { PerfilAseguradora } from './data/perfiles';
 import type { Periodo, Simulacion } from './calc';
+import type { MetaComercial } from './metas';
 
-export type TabId = 'mezcla' | 'candidatos' | 'simulador' | 'dashboard' | 'config';
+export type TabId = 'mezcla' | 'candidatos' | 'simulador' | 'dashboard' | 'metas' | 'config';
 export type EspecialidadFiltro = EspecialidadId | 'todas';
 
 export const isTodasEspecialidades = (e: EspecialidadFiltro): e is 'todas' => e === 'todas';
@@ -46,6 +47,7 @@ export interface AppState {
   tab: TabId;
   simulacion: Simulacion;
   overrides: Overrides;
+  metas: Record<string, MetaComercial>;
 }
 
 export const guaKey = (a: AseguradoraId, e: EspecialidadId) => `${a}:${e}`;
@@ -62,7 +64,11 @@ export type Action =
   | { type: 'SET_PROC_OVERRIDE'; procId: string; field: 'ticket' | 'margen'; value: number | undefined }
   | { type: 'SET_GUA_OVERRIDE'; aseguradora: AseguradoraId; especialidad: EspecialidadId; value: number | undefined }
   | { type: 'IMPORT_OVERRIDES'; overrides: Overrides }
-  | { type: 'RESET_OVERRIDES' };
+  | { type: 'RESET_OVERRIDES' }
+  | { type: 'ADD_META'; meta: MetaComercial }
+  | { type: 'UPDATE_META'; id: string; updates: Partial<MetaComercial> }
+  | { type: 'REMOVE_META'; id: string }
+  | { type: 'LOAD_META_INTO_SIM'; id: string };
 
 const EMPTY_OVERRIDES: Overrides = { procedimientos: {}, gua: {}, aseguradorasCustom: {} };
 
@@ -73,9 +79,11 @@ const initialState: AppState = {
   tab: 'mezcla',
   simulacion: {},
   overrides: EMPTY_OVERRIDES,
+  metas: {},
 };
 
 const STORAGE_KEY = 'sammp-overrides-v1';
+const STORAGE_KEY_METAS = 'sammp-metas-v1';
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -144,6 +152,33 @@ function reducer(state: AppState, action: Action): AppState {
         aseguradora: aseguradoraSigueValida ? state.aseguradora : 'gnp',
       };
     }
+    case 'ADD_META':
+      return { ...state, metas: { ...state.metas, [action.meta.id]: action.meta } };
+    case 'UPDATE_META': {
+      const current = state.metas[action.id];
+      if (!current) return state;
+      return {
+        ...state,
+        metas: { ...state.metas, [action.id]: { ...current, ...action.updates } },
+      };
+    }
+    case 'REMOVE_META': {
+      const next = { ...state.metas };
+      delete next[action.id];
+      return { ...state, metas: next };
+    }
+    case 'LOAD_META_INTO_SIM': {
+      const meta = state.metas[action.id];
+      if (!meta) return state;
+      return {
+        ...state,
+        aseguradora: meta.aseguradoraId,
+        especialidad: meta.especialidad,
+        periodo: meta.periodo,
+        simulacion: { ...meta.simulacionSnapshot },
+        tab: 'simulador',
+      };
+    }
   }
 }
 
@@ -160,6 +195,19 @@ function loadOverrides(): Overrides {
     };
   } catch {
     return EMPTY_OVERRIDES;
+  }
+}
+
+function loadMetas(): Record<string, MetaComercial> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY_METAS);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    return parsed as Record<string, MetaComercial>;
+  } catch {
+    return {};
   }
 }
 
@@ -182,6 +230,10 @@ export function StateProvider({ children }: { children: ReactNode }) {
     ) {
       dispatch({ type: 'IMPORT_OVERRIDES', overrides: hydrated });
     }
+    const metasHidratadas = loadMetas();
+    for (const meta of Object.values(metasHidratadas)) {
+      dispatch({ type: 'ADD_META', meta });
+    }
   }, []);
 
   useEffect(() => {
@@ -192,6 +244,15 @@ export function StateProvider({ children }: { children: ReactNode }) {
       /* quota or private mode — ignore */
     }
   }, [state.overrides]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY_METAS, JSON.stringify(state.metas));
+    } catch {
+      /* ignore */
+    }
+  }, [state.metas]);
 
   return <StateContext.Provider value={{ state, dispatch }}>{children}</StateContext.Provider>;
 }

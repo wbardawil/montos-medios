@@ -8,6 +8,7 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'candidatos', label: 'Candidatos a push' },
   { id: 'simulador', label: 'Simulador de mezcla' },
   { id: 'dashboard', label: 'Dashboard hospital' },
+  { id: 'metas', label: 'Metas comerciales' },
   { id: 'config', label: 'Configuración' },
 ];
 
