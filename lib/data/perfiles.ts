@@ -1,9 +1,8 @@
-import type { AseguradoraId } from './aseguradoras';
 import type { Complejidad } from './procedimientos';
 
 export type PerfilAseguradora = Record<Complejidad, number>;
 
-export const PERFIL_ASEGURADORA: Record<AseguradoraId, PerfilAseguradora> = {
+export const PERFIL_ASEGURADORA: Record<string, PerfilAseguradora> = {
   gnp: { alta: 1.0, media: 1.0, baja: 1.0 },
   axa: { alta: 1.2, media: 1.0, baja: 0.8 },
   metlife: { alta: 0.9, media: 1.0, baja: 1.1 },
@@ -17,3 +16,5 @@ export const PERFIL_ASEGURADORA: Record<AseguradoraId, PerfilAseguradora> = {
   qualitas: { alta: 0.5, media: 0.8, baja: 1.5 },
   panamerican: { alta: 1.2, media: 1.0, baja: 0.8 },
 };
+
+export const DEFAULT_PERFIL: PerfilAseguradora = { alta: 1.0, media: 1.0, baja: 1.0 };

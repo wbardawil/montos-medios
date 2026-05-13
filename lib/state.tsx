@@ -4,11 +4,18 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useReducer,
   type ReactNode,
 } from 'react';
-import type { AseguradoraId } from './data/aseguradoras';
+import {
+  ASEGURADORAS,
+  isBaseAseguradora,
+  type Aseguradora,
+  type AseguradoraId,
+} from './data/aseguradoras';
 import type { EspecialidadId } from './data/especialidades';
+import type { PerfilAseguradora } from './data/perfiles';
 import type { Periodo, Simulacion } from './calc';
 
 export type TabId = 'mezcla' | 'candidatos' | 'simulador' | 'dashboard' | 'config';
@@ -18,9 +25,15 @@ export interface ProcOverride {
   margen?: number;
 }
 
+export interface AseguradoraCustom {
+  nombre: string;
+  perfil: PerfilAseguradora;
+}
+
 export interface Overrides {
   procedimientos: Record<string, ProcOverride>;
   gua: Record<string, number>;
+  aseguradorasCustom: Record<string, AseguradoraCustom>;
 }
 
 export interface AppState {
@@ -48,7 +61,7 @@ export type Action =
   | { type: 'IMPORT_OVERRIDES'; overrides: Overrides }
   | { type: 'RESET_OVERRIDES' };
 
-const EMPTY_OVERRIDES: Overrides = { procedimientos: {}, gua: {} };
+const EMPTY_OVERRIDES: Overrides = { procedimientos: {}, gua: {}, aseguradorasCustom: {} };
 
 const initialState: AppState = {
   aseguradora: 'gnp',
@@ -104,10 +117,30 @@ function reducer(state: AppState, action: Action): AppState {
       else gua[k] = action.value;
       return { ...state, overrides: { ...state.overrides, gua } };
     }
-    case 'IMPORT_OVERRIDES':
-      return { ...state, overrides: action.overrides, simulacion: {} };
-    case 'RESET_OVERRIDES':
-      return { ...state, overrides: EMPTY_OVERRIDES, simulacion: {} };
+    case 'IMPORT_OVERRIDES': {
+      const ov: Overrides = {
+        procedimientos: action.overrides.procedimientos ?? {},
+        gua: action.overrides.gua ?? {},
+        aseguradorasCustom: action.overrides.aseguradorasCustom ?? {},
+      };
+      const aseguradoraSigueValida =
+        isBaseAseguradora(state.aseguradora) || state.aseguradora in ov.aseguradorasCustom;
+      return {
+        ...state,
+        overrides: ov,
+        simulacion: {},
+        aseguradora: aseguradoraSigueValida ? state.aseguradora : 'gnp',
+      };
+    }
+    case 'RESET_OVERRIDES': {
+      const aseguradoraSigueValida = isBaseAseguradora(state.aseguradora);
+      return {
+        ...state,
+        overrides: EMPTY_OVERRIDES,
+        simulacion: {},
+        aseguradora: aseguradoraSigueValida ? state.aseguradora : 'gnp',
+      };
+    }
   }
 }
 
@@ -120,6 +153,7 @@ function loadOverrides(): Overrides {
     return {
       procedimientos: parsed.procedimientos ?? {},
       gua: parsed.gua ?? {},
+      aseguradorasCustom: parsed.aseguradorasCustom ?? {},
     };
   } catch {
     return EMPTY_OVERRIDES;
@@ -140,7 +174,8 @@ export function StateProvider({ children }: { children: ReactNode }) {
     const hydrated = loadOverrides();
     if (
       Object.keys(hydrated.procedimientos).length > 0 ||
-      Object.keys(hydrated.gua).length > 0
+      Object.keys(hydrated.gua).length > 0 ||
+      Object.keys(hydrated.aseguradorasCustom).length > 0
     ) {
       dispatch({ type: 'IMPORT_OVERRIDES', overrides: hydrated });
     }
@@ -162,4 +197,17 @@ export function useAppState() {
   const ctx = useContext(StateContext);
   if (!ctx) throw new Error('useAppState debe usarse dentro de StateProvider');
   return ctx;
+}
+
+export function useAseguradoras(): Record<string, Aseguradora> {
+  const { state } = useAppState();
+  return useMemo(
+    () => ({ ...ASEGURADORAS, ...state.overrides.aseguradorasCustom }),
+    [state.overrides.aseguradorasCustom],
+  );
+}
+
+export function useAseguradoraIds(): string[] {
+  const aseguradoras = useAseguradoras();
+  return useMemo(() => Object.keys(aseguradoras), [aseguradoras]);
 }

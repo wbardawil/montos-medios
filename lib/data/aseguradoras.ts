@@ -1,22 +1,10 @@
-export type AseguradoraId =
-  | 'gnp'
-  | 'axa'
-  | 'metlife'
-  | 'monterrey'
-  | 'mapfre'
-  | 'bbva'
-  | 'inbursa'
-  | 'banorte'
-  | 'allianz'
-  | 'atlas'
-  | 'qualitas'
-  | 'panamerican';
-
 export interface Aseguradora {
   nombre: string;
 }
 
-export const ASEGURADORAS: Record<AseguradoraId, Aseguradora> = {
+export type AseguradoraId = string;
+
+export const ASEGURADORAS: Record<string, Aseguradora> = {
   gnp: { nombre: 'GNP Seguros' },
   axa: { nombre: 'AXA Seguros' },
   metlife: { nombre: 'MetLife México' },
@@ -31,4 +19,19 @@ export const ASEGURADORAS: Record<AseguradoraId, Aseguradora> = {
   panamerican: { nombre: 'Pan-American Life' },
 };
 
-export const ASEGURADORA_IDS = Object.keys(ASEGURADORAS) as AseguradoraId[];
+export const ASEGURADORA_IDS = Object.keys(ASEGURADORAS);
+export const BASE_ASEGURADORA_IDS_SET: ReadonlySet<string> = new Set(ASEGURADORA_IDS);
+
+export function isBaseAseguradora(id: string): boolean {
+  return BASE_ASEGURADORA_IDS_SET.has(id);
+}
+
+export function slugifyAseguradora(nombre: string): string {
+  return nombre
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 32);
+}

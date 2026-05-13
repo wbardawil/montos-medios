@@ -1,8 +1,8 @@
 'use client';
 
-import { ASEGURADORAS, type AseguradoraId } from '@/lib/data/aseguradoras';
+import type { AseguradoraId } from '@/lib/data/aseguradoras';
 import { ESPECIALIDADES, type EspecialidadId } from '@/lib/data/especialidades';
-import { useAppState } from '@/lib/state';
+import { useAppState, useAseguradoras } from '@/lib/state';
 import { Button } from './ui/button';
 import type { Periodo } from '@/lib/calc';
 
@@ -19,6 +19,7 @@ const LABEL_CLASS =
 
 export function FilterBar() {
   const { state, dispatch } = useAppState();
+  const aseguradoras = useAseguradoras();
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-4 mb-5">
@@ -33,7 +34,7 @@ export function FilterBar() {
             value={state.aseguradora}
             onChange={(e) => dispatch({ type: 'SET_ASEGURADORA', value: e.target.value as AseguradoraId })}
           >
-            {Object.entries(ASEGURADORAS).map(([id, a]) => (
+            {Object.entries(aseguradoras).map(([id, a]) => (
               <option key={id} value={id}>
                 {a.nombre}
               </option>

@@ -12,15 +12,19 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ASEGURADORAS, ASEGURADORA_IDS } from '@/lib/data/aseguradoras';
-import { ESPECIALIDADES, ESPECIALIDAD_IDS } from '@/lib/data/especialidades';
+import type { AseguradoraId } from '@/lib/data/aseguradoras';
+import {
+  ESPECIALIDADES,
+  ESPECIALIDAD_IDS,
+  type EspecialidadId,
+} from '@/lib/data/especialidades';
 import { calcKPIs, generarDatos, resolveGUA } from '@/lib/calc';
 import { fmtMXN, fmtMXNCompact } from '@/lib/format';
-import { useAppState } from '@/lib/state';
+import { useAppState, useAseguradoras } from '@/lib/state';
 
 interface BarEsp {
   especialidad: string;
-  especialidadId: string;
+  especialidadId: EspecialidadId;
   montoMedio: number;
   gua: number;
   casos: number;
@@ -28,7 +32,7 @@ interface BarEsp {
 
 interface BarAseg {
   aseguradora: string;
-  aseguradoraId: string;
+  aseguradoraId: AseguradoraId;
   montoMedio: number;
   margen: number;
   casos: number;
@@ -36,6 +40,9 @@ interface BarAseg {
 
 export function VistaDashboard() {
   const { state, dispatch } = useAppState();
+  const aseguradoras = useAseguradoras();
+  const aseguradoraNombre = aseguradoras[state.aseguradora]?.nombre ?? state.aseguradora;
+  const asegIds = Object.keys(aseguradoras);
 
   const porEspecialidad: BarEsp[] = ESPECIALIDAD_IDS.map((espId) => {
     const datos = generarDatos(state.aseguradora, espId, state.periodo, state.overrides);
@@ -52,12 +59,12 @@ export function VistaDashboard() {
   let montoTotalHospital = 0;
   let casosTotalHospital = 0;
   let margenTotalHospital = 0;
-  const porAseguradora: BarAseg[] = ASEGURADORA_IDS.map((asegId) => {
+  const porAseguradora: BarAseg[] = asegIds.map((asegId) => {
     let monto = 0;
     let casos = 0;
     let margen = 0;
     for (const espId of ESPECIALIDAD_IDS) {
-      const datos = generarDatos(asegId, espId, state.periodo);
+      const datos = generarDatos(asegId, espId, state.periodo, state.overrides);
       const k = calcKPIs(datos);
       monto += k.totalMonto;
       casos += k.totalCasos;
@@ -67,7 +74,7 @@ export function VistaDashboard() {
     casosTotalHospital += casos;
     margenTotalHospital += margen;
     return {
-      aseguradora: ASEGURADORAS[asegId].nombre,
+      aseguradora: aseguradoras[asegId]?.nombre ?? asegId,
       aseguradoraId: asegId,
       montoMedio: casos > 0 ? monto / casos : 0,
       margen: monto > 0 ? margen / monto : 0,
@@ -93,7 +100,7 @@ export function VistaDashboard() {
         <SummaryCard
           label="Monto medio hospital"
           value={fmtMXN(montoMedioHospital)}
-          hint="Ponderado por casos · todas las aseguradoras × especialidades"
+          hint={`Ponderado · ${asegIds.length} aseguradoras × ${ESPECIALIDAD_IDS.length} especialidades`}
         />
         <SummaryCard
           label="Casos totales"
@@ -117,7 +124,7 @@ export function VistaDashboard() {
         <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
           <div>
             <h4 className="text-sm font-bold text-slate-900">
-              Monto medio por especialidad · {ASEGURADORAS[state.aseguradora].nombre}
+              Monto medio por especialidad · {aseguradoraNombre}
             </h4>
             <p className="text-xs text-slate-500 mt-0.5">
               Comparado contra GUA de la aseguradora. Click en una barra para abrir esa especialidad.
@@ -160,7 +167,7 @@ export function VistaDashboard() {
                 <Cell
                   key={entry.especialidadId}
                   onClick={() =>
-                    dispatch({ type: 'SET_ESPECIALIDAD', value: entry.especialidadId as never })
+                    dispatch({ type: 'SET_ESPECIALIDAD', value: entry.especialidadId })
                   }
                 />
               ))}
@@ -225,7 +232,7 @@ export function VistaDashboard() {
                   key={entry.aseguradoraId}
                   fill={entry.aseguradoraId === state.aseguradora ? '#10b981' : '#4f46e5'}
                   onClick={() =>
-                    dispatch({ type: 'SET_ASEGURADORA', value: entry.aseguradoraId as never })
+                    dispatch({ type: 'SET_ASEGURADORA', value: entry.aseguradoraId })
                   }
                 />
               ))}

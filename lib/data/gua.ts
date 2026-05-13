@@ -1,7 +1,6 @@
-import type { AseguradoraId } from './aseguradoras';
 import type { EspecialidadId } from './especialidades';
 
-export const GUA_REFERENCIA: Record<EspecialidadId, Record<AseguradoraId, number>> = {
+export const GUA_REFERENCIA: Record<EspecialidadId, Record<string, number>> = {
   ortopedia: {
     gnp: 110000, axa: 125000, metlife: 105000, monterrey: 118000,
     mapfre: 85000, bbva: 82000, inbursa: 75000, banorte: 80000,

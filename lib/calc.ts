@@ -1,7 +1,7 @@
 import type { AseguradoraId } from './data/aseguradoras';
 import type { EspecialidadId } from './data/especialidades';
 import { GUA_REFERENCIA } from './data/gua';
-import { PERFIL_ASEGURADORA } from './data/perfiles';
+import { DEFAULT_PERFIL, PERFIL_ASEGURADORA, type PerfilAseguradora } from './data/perfiles';
 import { SUBPROCEDIMIENTOS, type SubProcedimiento } from './data/procedimientos';
 
 export type Periodo = '12m' | '6m' | 'ytd';
@@ -12,9 +12,15 @@ export interface ProcOverrideInput {
   margen?: number;
 }
 
+export interface AseguradoraCustomInput {
+  nombre: string;
+  perfil: PerfilAseguradora;
+}
+
 export interface OverridesInput {
   procedimientos?: Record<string, ProcOverrideInput>;
   gua?: Record<string, number>;
+  aseguradorasCustom?: Record<string, AseguradoraCustomInput>;
 }
 
 export interface ProcEnriquecido extends SubProcedimiento {
@@ -61,13 +67,22 @@ function hash(...args: (string | number)[]): number {
   return Math.abs(h);
 }
 
+function resolvePerfil(
+  aseguradoraId: AseguradoraId,
+  overrides?: OverridesInput,
+): PerfilAseguradora {
+  const custom = overrides?.aseguradorasCustom?.[aseguradoraId]?.perfil;
+  if (custom) return custom;
+  return PERFIL_ASEGURADORA[aseguradoraId] ?? DEFAULT_PERFIL;
+}
+
 export function generarDatos(
   aseguradoraId: AseguradoraId,
   especialidadId: EspecialidadId,
   periodo: Periodo = '12m',
   overrides?: OverridesInput,
 ): ProcEnriquecido[] {
-  const perfil = PERFIL_ASEGURADORA[aseguradoraId] ?? PERFIL_ASEGURADORA.gnp;
+  const perfil = resolvePerfil(aseguradoraId, overrides);
   const procs = SUBPROCEDIMIENTOS[especialidadId] ?? [];
   const periodoMult = periodo === '12m' ? 1 : periodo === '6m' ? 0.5 : 0.4;
   const procOverrides = overrides?.procedimientos ?? {};
@@ -152,7 +167,7 @@ export function identificarCandidatos(datos: ProcEnriquecido[]): Candidato[] {
     .sort((a, b) => b.score - a.score);
 }
 
-export type SeveridadGUA = 'critica' | 'alta' | 'media' | 'baja' | 'oportunidad';
+export type SeveridadGUA = 'critica' | 'alta' | 'media' | 'baja' | 'oportunidad' | 'sin_gua';
 
 export interface ImpactoVsGUA {
   gua: number;
@@ -179,8 +194,11 @@ export function calcImpactoVsGUA(
   overrides?: OverridesInput,
 ): ImpactoVsGUA {
   const gua = resolveGUA(aseguradoraId, especialidadId, overrides);
+  if (gua <= 0) {
+    return { gua: 0, gap_abs: 0, gap_pct: 0, severidad: 'sin_gua' };
+  }
   const gap_abs = kpis.montoMedio - gua;
-  const gap_pct = gua > 0 ? gap_abs / gua : 0;
+  const gap_pct = gap_abs / gua;
   let severidad: SeveridadGUA;
   if (gap_pct > 0.25) severidad = 'critica';
   else if (gap_pct > 0.15) severidad = 'alta';

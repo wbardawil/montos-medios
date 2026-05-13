@@ -1,10 +1,9 @@
 'use client';
 
-import { ASEGURADORAS } from '@/lib/data/aseguradoras';
 import { ESPECIALIDADES } from '@/lib/data/especialidades';
 import { calcKPIs, generarDatos } from '@/lib/calc';
 import { fmtMXN, fmtMXNCompact, fmtPct } from '@/lib/format';
-import { useAppState } from '@/lib/state';
+import { useAppState, useAseguradoras } from '@/lib/state';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +11,8 @@ const toneByComplejidad = { alta: 'red', media: 'amber', baja: 'emerald' } as co
 
 export function VistaMezcla() {
   const { state } = useAppState();
+  const aseguradoras = useAseguradoras();
+  const nombreAseguradora = aseguradoras[state.aseguradora]?.nombre ?? state.aseguradora;
   const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo, state.overrides);
   const kpis = calcKPIs(datos);
   const ordenado = [...datos].sort((a, b) => b.monto_total - a.monto_total);
@@ -22,8 +23,7 @@ export function VistaMezcla() {
         <div>
           <h3 className="text-base font-bold text-slate-900">Mezcla de portafolio</h3>
           <p className="text-sm text-slate-600">
-            {ASEGURADORAS[state.aseguradora].nombre} · {ESPECIALIDADES[state.especialidad]} ·{' '}
-            {state.periodo}
+            {nombreAseguradora} · {ESPECIALIDADES[state.especialidad]} · {state.periodo}
           </p>
         </div>
         <div className="text-xs text-slate-500">Ordenado por contribución al monto total</div>

@@ -11,6 +11,15 @@ import { fmtMXN, fmtMXNCompact, fmtPct } from '@/lib/format';
 import { Card, CardBody } from './ui/card';
 import { cn } from '@/lib/utils';
 
+const SEVERIDAD_TAG: Record<string, string> = {
+  critica: '· tensión crítica',
+  alta: '· tensión alta',
+  media: '· sobre referencia',
+  baja: '· cerca de referencia',
+  oportunidad: '· bajo referencia',
+  sin_gua: '· GUA sin definir',
+};
+
 export function KPICards() {
   const { state } = useAppState();
   const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo, state.overrides);
@@ -21,19 +30,13 @@ export function KPICards() {
   const hasSim = Object.values(state.simulacion).some((v) => v !== 0);
 
   const gapToneClass =
-    impacto.severidad === 'critica' || impacto.severidad === 'alta'
-      ? 'text-red-600'
-      : impacto.severidad === 'media'
-        ? 'text-amber-600'
-        : 'text-emerald-600';
-
-  const tagSeveridad = {
-    critica: '· tensión crítica',
-    alta: '· tensión alta',
-    media: '· sobre referencia',
-    baja: '· cerca de referencia',
-    oportunidad: '· bajo referencia',
-  }[impacto.severidad];
+    impacto.severidad === 'sin_gua'
+      ? 'text-slate-500'
+      : impacto.severidad === 'critica' || impacto.severidad === 'alta'
+        ? 'text-red-600'
+        : impacto.severidad === 'media'
+          ? 'text-amber-600'
+          : 'text-emerald-600';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
@@ -57,11 +60,17 @@ export function KPICards() {
             GUA aseguradora
           </div>
           <div className="text-2xl font-bold tabular-nums text-slate-900">
-            {fmtMXN(impacto.gua)}
+            {impacto.severidad === 'sin_gua' ? '—' : fmtMXN(impacto.gua)}
           </div>
           <div className={cn('text-xs mt-1', gapToneClass)}>
-            {impacto.gap_pct >= 0 ? '+' : ''}
-            {(impacto.gap_pct * 100).toFixed(1)}% vs GUA {tagSeveridad}
+            {impacto.severidad === 'sin_gua' ? (
+              <>Configura el GUA para esta combinación</>
+            ) : (
+              <>
+                {impacto.gap_pct >= 0 ? '+' : ''}
+                {(impacto.gap_pct * 100).toFixed(1)}% vs GUA {SEVERIDAD_TAG[impacto.severidad]}
+              </>
+            )}
           </div>
         </CardBody>
       </Card>

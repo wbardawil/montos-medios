@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ASEGURADORAS } from '@/lib/data/aseguradoras';
 import { ESPECIALIDADES } from '@/lib/data/especialidades';
 import {
   aplicarSimulacion,
@@ -18,7 +17,7 @@ import {
 } from '@/lib/optimizer';
 import { evaluarPaquetes, type IntencionPaquete } from '@/lib/paquetes';
 import { fmtMXN, fmtMXNCompact, fmtPct } from '@/lib/format';
-import { useAppState } from '@/lib/state';
+import { useAppState, useAseguradoras } from '@/lib/state';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
@@ -49,6 +48,8 @@ const INTENCION_TONE: Record<IntencionPaquete, 'emerald' | 'indigo' | 'amber'> =
 
 export function VistaSimulador() {
   const { state, dispatch } = useAppState();
+  const aseguradoras = useAseguradoras();
+  const nombreAseguradora = aseguradoras[state.aseguradora]?.nombre ?? state.aseguradora;
   const [config, setConfig] = useState<ConfigOptimizador>(DEFAULT_CONFIG);
   const [ultimoResultado, setUltimoResultado] = useState<{
     iteraciones: number;
@@ -510,8 +511,7 @@ export function VistaSimulador() {
           </div>
           <p className="text-sm leading-relaxed">
             Con la mezcla propuesta, el monto medio de{' '}
-            {ESPECIALIDADES[state.especialidad].toLowerCase()} con{' '}
-            {ASEGURADORAS[state.aseguradora].nombre}{' '}
+            {ESPECIALIDADES[state.especialidad].toLowerCase()} con {nombreAseguradora}{' '}
             {kSim.montoMedio < kActual.montoMedio ? 'baja' : 'sube'} de{' '}
             {fmtMXN(kActual.montoMedio)} a {fmtMXN(kSim.montoMedio)} (
             {(((kSim.montoMedio - kActual.montoMedio) / kActual.montoMedio) * 100).toFixed(1)}%),
