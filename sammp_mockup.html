@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAMMP — Portfolio Mix Manager (PoC)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  .tabular { font-variant-numeric: tabular-nums; }
+  .scroll-shadow { mask-image: linear-gradient(to bottom, black 90%, transparent); }
+  input[type=range] { -webkit-appearance: none; appearance: none; }
+  input[type=range]::-webkit-slider-runnable-track { background: #e2e8f0; height: 4px; border-radius: 999px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: #4f46e5; border-radius: 50%; margin-top: -6px; cursor: pointer; }
+  input[type=range]::-moz-range-track { background: #e2e8f0; height: 4px; border-radius: 999px; }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; background: #4f46e5; border-radius: 50%; border: none; cursor: pointer; }
+  .arrow-up::before { content: '▲'; color: #10b981; margin-right: 4px; font-size: 10px; }
+  .arrow-down::before { content: '▼'; color: #ef4444; margin-right: 4px; font-size: 10px; }
+</style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900 antialiased">
+
+<!-- ───────────────────────── HEADER ───────────────────────── -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+  <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold text-sm">S</div>
+      <div>
+        <div class="font-bold text-base leading-tight">SAMMP <span class="font-normal text-slate-400 text-xs ml-1">Portfolio Mix Manager</span></div>
+        <div class="text-xs text-slate-500">Hospital privado · Dirección comercial · v0.1 PoC</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 text-xs text-slate-600">
+      <span class="px-2 py-1 bg-amber-50 text-amber-800 rounded border border-amber-200 font-medium">⚠ Datos sintéticos · PoC</span>
+      <span>Mayo 2026</span>
+    </div>
+  </div>
+</header>
+
+<!-- ───────────────────────── FILTER BAR ───────────────────────── -->
+<div class="max-w-7xl mx-auto px-6 py-5">
+  <div class="bg-white rounded-lg border border-slate-200 p-4 mb-5">
+    <div class="flex flex-wrap items-end gap-4">
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Aseguradora</label>
+        <select id="sel-aseguradora" class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></select>
+      </div>
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Especialidad</label>
+        <select id="sel-especialidad" class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></select>
+      </div>
+      <div class="flex-1 min-w-[160px]">
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Periodo</label>
+        <select id="sel-periodo" class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="12m">Últimos 12 meses</option>
+          <option value="6m">Últimos 6 meses</option>
+          <option value="ytd">Año en curso</option>
+        </select>
+      </div>
+      <button onclick="resetSimulation()" class="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md border border-slate-300 transition">Reiniciar simulación</button>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── KPI CARDS ───────────────────────── -->
+  <div id="kpi-cards" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5"></div>
+
+  <!-- ───────────────────────── TABS ───────────────────────── -->
+  <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+    <div class="border-b border-slate-200 px-4">
+      <nav class="flex gap-1 -mb-px">
+        <button data-tab="mezcla" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 transition">Mezcla actual</button>
+        <button data-tab="candidatos" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 transition">Candidatos a push</button>
+        <button data-tab="simulador" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 transition">Simulador de mezcla</button>
+      </nav>
+    </div>
+    <div id="tab-content" class="p-5"></div>
+  </div>
+
+  <!-- ───────────────────────── FOOTER ───────────────────────── -->
+  <footer class="mt-8 text-center text-xs text-slate-500 pb-6">
+    <p>SAMMP Portfolio Mix Manager · Prueba de concepto generada con datos sintéticos representativos del mercado mexicano de gastos médicos mayores.</p>
+    <p class="mt-1">Aseguradoras y montos GUA referenciados son ilustrativos. Construido para validación con dirección comercial.</p>
+  </footer>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//                              DATA
+// ═══════════════════════════════════════════════════════════════════
+
+const ASEGURADORAS = {
+  gnp:        { nombre: 'GNP Seguros' },
+  axa:        { nombre: 'AXA Seguros' },
+  metlife:    { nombre: 'MetLife México' },
+  monterrey:  { nombre: 'Seguros Monterrey NYL' },
+  mapfre:     { nombre: 'MAPFRE Tepeyac' },
+  bbva:       { nombre: 'BBVA Seguros' },
+  inbursa:    { nombre: 'Inbursa Seguros' },
+  banorte:    { nombre: 'Banorte Seguros' },
+  allianz:    { nombre: 'Allianz México' },
+  atlas:      { nombre: 'Seguros Atlas' },
+  qualitas:   { nombre: 'Quálitas Salud' },
+  panamerican:{ nombre: 'Pan-American Life' }
+};
+
+const ESPECIALIDADES = {
+  ortopedia: 'Ortopedia y Traumatología',
+  cardio:    'Cardiología',
+  cirgral:   'Cirugía General',
+  gineco:    'Ginecología y Obstetricia'
+};
+
+// Sub-procedimientos por especialidad (con baseline de ticket y margen)
+const SUBPROCEDIMIENTOS = {
+  ortopedia: [
+    { id: 'columna_lumbar',      nombre: 'Cirugía de columna lumbar (fusión)',       baseTicket: 385000, baseMargen: 0.12, complejidad: 'alta' },
+    { id: 'columna_cervical',    nombre: 'Discectomía cervical',                     baseTicket: 320000, baseMargen: 0.13, complejidad: 'alta' },
+    { id: 'artroplastia_cadera', nombre: 'Artroplastia total de cadera',             baseTicket: 295000, baseMargen: 0.15, complejidad: 'alta' },
+    { id: 'artroplastia_rodilla',nombre: 'Artroplastia total de rodilla',            baseTicket: 265000, baseMargen: 0.14, complejidad: 'alta' },
+    { id: 'osteo_femur',         nombre: 'Osteosíntesis de fémur',                   baseTicket: 145000, baseMargen: 0.22, complejidad: 'media' },
+    { id: 'osteo_tibia',         nombre: 'Osteosíntesis de tibia',                   baseTicket:  95000, baseMargen: 0.26, complejidad: 'media' },
+    { id: 'rep_lca',             nombre: 'Reparación ligamento cruzado anterior',    baseTicket:  98000, baseMargen: 0.28, complejidad: 'media' },
+    { id: 'artros_rodilla',      nombre: 'Artroscopia diagnóstica de rodilla',       baseTicket:  62000, baseMargen: 0.35, complejidad: 'baja'  },
+    { id: 'artros_hombro',       nombre: 'Artroscopia de hombro',                    baseTicket:  75000, baseMargen: 0.32, complejidad: 'baja'  },
+    { id: 'menisco',             nombre: 'Meniscectomía artroscópica',               baseTicket:  48000, baseMargen: 0.38, complejidad: 'baja'  },
+    { id: 'tunel_carp',          nombre: 'Liberación de túnel carpiano',             baseTicket:  32000, baseMargen: 0.42, complejidad: 'baja'  },
+    { id: 'hallux',              nombre: 'Corrección de hallux valgus',              baseTicket:  38000, baseMargen: 0.38, complejidad: 'baja'  }
+  ],
+  cardio: [
+    { id: 'bypass',         nombre: 'Cirugía de revascularización coronaria',  baseTicket: 520000, baseMargen: 0.14, complejidad: 'alta'  },
+    { id: 'reemplazo_valv', nombre: 'Reemplazo valvular aórtico',              baseTicket: 580000, baseMargen: 0.13, complejidad: 'alta'  },
+    { id: 'angio_stent',    nombre: 'Angioplastia con stent farmacoactivo',    baseTicket: 235000, baseMargen: 0.20, complejidad: 'media' },
+    { id: 'marcapasos',     nombre: 'Implante de marcapasos definitivo',       baseTicket: 180000, baseMargen: 0.25, complejidad: 'media' },
+    { id: 'ablacion',       nombre: 'Ablación cardíaca por radiofrecuencia',   baseTicket: 195000, baseMargen: 0.22, complejidad: 'media' },
+    { id: 'catet_diag',     nombre: 'Cateterismo diagnóstico',                 baseTicket:  75000, baseMargen: 0.38, complejidad: 'baja'  },
+    { id: 'cardiov',        nombre: 'Cardioversión eléctrica',                 baseTicket:  28000, baseMargen: 0.45, complejidad: 'baja'  },
+    { id: 'eco_estres',     nombre: 'Ecocardiograma con estrés farmacológico', baseTicket:  12000, baseMargen: 0.48, complejidad: 'baja'  }
+  ],
+  cirgral: [
+    { id: 'bypass_gast',  nombre: 'Bypass gástrico laparoscópico',         baseTicket: 285000, baseMargen: 0.18, complejidad: 'alta'  },
+    { id: 'manga_gast',   nombre: 'Manga gástrica laparoscópica',          baseTicket: 195000, baseMargen: 0.22, complejidad: 'alta'  },
+    { id: 'tiroidectomia',nombre: 'Tiroidectomía total',                   baseTicket: 125000, baseMargen: 0.25, complejidad: 'media' },
+    { id: 'colecist',     nombre: 'Colecistectomía laparoscópica',         baseTicket:  68000, baseMargen: 0.35, complejidad: 'baja'  },
+    { id: 'apendi',       nombre: 'Apendicectomía laparoscópica',          baseTicket:  55000, baseMargen: 0.38, complejidad: 'baja'  },
+    { id: 'hernia_ing',   nombre: 'Herniorrafía inguinal con malla',       baseTicket:  42000, baseMargen: 0.42, complejidad: 'baja'  },
+    { id: 'hernia_umb',   nombre: 'Reparación de hernia umbilical',        baseTicket:  35000, baseMargen: 0.40, complejidad: 'baja'  }
+  ],
+  gineco: [
+    { id: 'cesarea',      nombre: 'Cesárea con complicaciones',           baseTicket:  85000, baseMargen: 0.22, complejidad: 'media' },
+    { id: 'parto',        nombre: 'Parto eutócico sin complicación',      baseTicket:  48000, baseMargen: 0.30, complejidad: 'baja'  },
+    { id: 'histerectomia',nombre: 'Histerectomía total abdominal',        baseTicket: 145000, baseMargen: 0.22, complejidad: 'media' },
+    { id: 'mioma',        nombre: 'Miomectomía',                          baseTicket:  95000, baseMargen: 0.28, complejidad: 'media' },
+    { id: 'lapar_diag',   nombre: 'Laparoscopia diagnóstica ginecológica',baseTicket:  52000, baseMargen: 0.38, complejidad: 'baja'  },
+    { id: 'salp',         nombre: 'Salpingoclasia bilateral',             baseTicket:  38000, baseMargen: 0.42, complejidad: 'baja'  }
+  ]
+};
+
+// Perfil de mezcla por aseguradora (modifica volúmenes según complejidad)
+const PERFIL_ASEGURADORA = {
+  gnp:         { alta: 1.0, media: 1.0, baja: 1.0 },
+  axa:         { alta: 1.2, media: 1.0, baja: 0.8 },
+  metlife:     { alta: 0.9, media: 1.0, baja: 1.1 },
+  monterrey:   { alta: 1.1, media: 1.0, baja: 0.9 },
+  mapfre:      { alta: 0.7, media: 0.9, baja: 1.3 },
+  bbva:        { alta: 0.8, media: 1.0, baja: 1.2 },
+  inbursa:     { alta: 0.6, media: 0.8, baja: 1.4 },
+  banorte:     { alta: 0.7, media: 0.9, baja: 1.3 },
+  allianz:     { alta: 1.1, media: 1.0, baja: 0.9 },
+  atlas:       { alta: 0.8, media: 1.1, baja: 1.1 },
+  qualitas:    { alta: 0.5, media: 0.8, baja: 1.5 },
+  panamerican: { alta: 1.2, media: 1.0, baja: 0.8 }
+};
+
+// GUA de referencia por aseguradora x especialidad (monto medio que reconoce la aseguradora)
+const GUA_REFERENCIA = {
+  ortopedia: {
+    gnp: 110000, axa: 125000, metlife: 105000, monterrey: 118000,
+    mapfre: 85000, bbva: 82000, inbursa: 75000, banorte: 80000,
+    allianz: 115000, atlas: 90000, qualitas: 70000, panamerican: 130000
+  },
+  cardio: {
+    gnp: 195000, axa: 220000, metlife: 188000, monterrey: 205000,
+    mapfre: 155000, bbva: 150000, inbursa: 138000, banorte: 148000,
+    allianz: 205000, atlas: 165000, qualitas: 130000, panamerican: 225000
+  },
+  cirgral: {
+    gnp: 88000, axa: 95000, metlife: 82000, monterrey: 90000,
+    mapfre: 68000, bbva: 65000, inbursa: 60000, banorte: 62000,
+    allianz: 92000, atlas: 72000, qualitas: 58000, panamerican: 98000
+  },
+  gineco: {
+    gnp: 75000, axa: 85000, metlife: 70000, monterrey: 78000,
+    mapfre: 55000, bbva: 52000, inbursa: 48000, banorte: 50000,
+    allianz: 80000, atlas: 58000, qualitas: 45000, panamerican: 88000
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//                            STATE
+// ═══════════════════════════════════════════════════════════════════
+
+const state = {
+  aseguradora: 'gnp',
+  especialidad: 'ortopedia',
+  periodo: '12m',
+  tab: 'mezcla',
+  simulacion: {} // procId -> delta cases
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//                           HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+const fmtMXN = (n) => '$' + Math.round(n).toLocaleString('es-MX');
+const fmtMXNcompact = (n) => {
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + (n/1000).toFixed(0) + 'K';
+  return '$' + Math.round(n);
+};
+const fmtPct = (n) => (n * 100).toFixed(1) + '%';
+const fmtDelta = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + 'pp';
+
+// Hash determinístico para variación estable por aseguradora x especialidad x procedimiento
+function hash(...args) {
+  let h = 0;
+  const s = args.join('-');
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h = h & h;
+  }
+  return Math.abs(h);
+}
+
+// Genera el dataset de un par aseguradora x especialidad
+function generarDatos(asegId, espId, periodo = '12m') {
+  const perfil = PERFIL_ASEGURADORA[asegId] || PERFIL_ASEGURADORA.gnp;
+  const procs = SUBPROCEDIMIENTOS[espId] || [];
+  const baseVol = { alta: 12, media: 18, baja: 22 };
+  const periodoMult = periodo === '12m' ? 1 : periodo === '6m' ? 0.5 : 0.4;
+
+  return procs.map(p => {
+    const seed = hash(asegId, espId, p.id);
+    const varVol = 0.7 + ((seed % 60) / 100); // 0.7 - 1.3
+    const varTicket = 0.95 + ((seed % 10) / 100); // 0.95 - 1.05
+    const casos = Math.max(1, Math.round(baseVol[p.complejidad] * perfil[p.complejidad] * varVol * periodoMult));
+    const ticket = Math.round(p.baseTicket * varTicket / 1000) * 1000;
+    const margen = Math.max(0.08, p.baseMargen + ((seed % 4) - 2) / 100);
+    return {
+      ...p,
+      casos,
+      ticket,
+      margen,
+      monto_total: casos * ticket,
+      margen_total: casos * ticket * margen
+    };
+  });
+}
+
+// Aplica simulación (delta de casos por procedimiento) a un dataset
+function aplicarSimulacion(datos, sim) {
+  return datos.map(p => {
+    const delta = sim[p.id] || 0;
+    const casosSim = Math.max(0, p.casos + delta);
+    return {
+      ...p,
+      casos_sim: casosSim,
+      monto_sim: casosSim * p.ticket,
+      margen_sim: casosSim * p.ticket * p.margen,
+      delta
+    };
+  });
+}
+
+// Calcula KPIs agregados
+function calcKPIs(datos, useSim = false) {
+  const casosKey = useSim ? 'casos_sim' : 'casos';
+  const montoKey = useSim ? 'monto_sim' : 'monto_total';
+  const margenKey = useSim ? 'margen_sim' : 'margen_total';
+
+  const totalCasos = datos.reduce((s, p) => s + p[casosKey], 0);
+  const totalMonto = datos.reduce((s, p) => s + p[montoKey], 0);
+  const totalMargen = datos.reduce((s, p) => s + p[margenKey], 0);
+  const montoMedio = totalCasos > 0 ? totalMonto / totalCasos : 0;
+  const margenPct = totalMonto > 0 ? totalMargen / totalMonto : 0;
+
+  return { totalCasos, totalMonto, totalMargen, montoMedio, margenPct };
+}
+
+// Identifica candidatos a push (alto margen + bajo ticket + bajo volumen relativo)
+function identificarCandidatos(datos) {
+  if (datos.length === 0) return [];
+  const tickets = datos.map(p => p.ticket).sort((a,b) => a-b);
+  const margenes = datos.map(p => p.margen).sort((a,b) => a-b);
+  const casos = datos.map(p => p.casos).sort((a,b) => a-b);
+  const p40Ticket = tickets[Math.floor(tickets.length * 0.4)];
+  const p60Margen = margenes[Math.floor(margenes.length * 0.6)];
+  const p50Casos = casos[Math.floor(casos.length * 0.5)];
+
+  return datos
+    .filter(p => p.ticket <= p40Ticket && p.margen >= p60Margen)
+    .map(p => ({
+      ...p,
+      score: (p.margen / 0.42) * 0.5 + ((p40Ticket - p.ticket) / p40Ticket) * 0.3 + Math.max(0, (p50Casos - p.casos) / p50Casos) * 0.2,
+      potencial_doble: p.casos * p.ticket * p.margen, // margen adicional si se duplica el volumen
+    }))
+    .sort((a,b) => b.score - a.score);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//                           RENDER
+// ═══════════════════════════════════════════════════════════════════
+
+function renderFilters() {
+  const sa = document.getElementById('sel-aseguradora');
+  const se = document.getElementById('sel-especialidad');
+  sa.innerHTML = Object.entries(ASEGURADORAS).map(([id, a]) =>
+    `<option value="${id}" ${id===state.aseguradora?'selected':''}>${a.nombre}</option>`).join('');
+  se.innerHTML = Object.entries(ESPECIALIDADES).map(([id, n]) =>
+    `<option value="${id}" ${id===state.especialidad?'selected':''}>${n}</option>`).join('');
+}
+
+function renderKPIs() {
+  const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo);
+  const datosSim = aplicarSimulacion(datos, state.simulacion);
+  const kActual = calcKPIs(datos);
+  const kSim = calcKPIs(datosSim, true);
+  const gua = GUA_REFERENCIA[state.especialidad]?.[state.aseguradora] || 0;
+  const gapVsGUA = gua > 0 ? (kActual.montoMedio - gua) / gua : 0;
+  const hasSim = Object.keys(state.simulacion).some(k => state.simulacion[k] !== 0);
+
+  document.getElementById('kpi-cards').innerHTML = `
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Monto medio actual</div>
+      <div class="text-2xl font-bold tabular text-slate-900">${fmtMXN(kActual.montoMedio)}</div>
+      <div class="text-xs text-slate-500 mt-1">${kActual.totalCasos} casos · ${fmtMXNcompact(kActual.totalMonto)} total</div>
+    </div>
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">GUA aseguradora</div>
+      <div class="text-2xl font-bold tabular text-slate-900">${fmtMXN(gua)}</div>
+      <div class="text-xs mt-1 ${gapVsGUA > 0.15 ? 'text-red-600' : gapVsGUA > 0 ? 'text-amber-600' : 'text-emerald-600'}">
+        ${gapVsGUA >= 0 ? '+' : ''}${(gapVsGUA*100).toFixed(1)}% vs GUA ${gapVsGUA > 0.15 ? '· tensión alta' : gapVsGUA > 0 ? '· sobre referencia' : '· bajo referencia'}
+      </div>
+    </div>
+    <div class="bg-white rounded-lg border border-slate-200 p-4">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Margen contributivo</div>
+      <div class="text-2xl font-bold tabular text-slate-900">${fmtMXNcompact(kActual.totalMargen)}</div>
+      <div class="text-xs text-slate-500 mt-1">${fmtPct(kActual.margenPct)} margen sobre venta</div>
+    </div>
+    <div class="bg-white rounded-lg border ${hasSim ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200'} p-4">
+      <div class="text-xs font-semibold ${hasSim ? 'text-indigo-700' : 'text-slate-500'} uppercase tracking-wide mb-2">${hasSim ? 'Simulación activa' : 'Sin simulación'}</div>
+      ${hasSim ? `
+        <div class="text-2xl font-bold tabular text-indigo-900">${fmtMXN(kSim.montoMedio)}</div>
+        <div class="text-xs mt-1 ${kSim.montoMedio < kActual.montoMedio ? 'text-emerald-700' : 'text-red-700'} font-medium">
+          ${kSim.montoMedio < kActual.montoMedio ? '▼' : '▲'} ${Math.abs(((kSim.montoMedio - kActual.montoMedio)/kActual.montoMedio)*100).toFixed(1)}% vs actual · margen ${fmtPct(kSim.margenPct)}
+        </div>
+      ` : `
+        <div class="text-2xl font-bold tabular text-slate-400">—</div>
+        <div class="text-xs text-slate-500 mt-1">Ajustar volúmenes en la pestaña Simulador</div>
+      `}
+    </div>
+  `;
+}
+
+function renderTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const active = btn.dataset.tab === state.tab;
+    btn.className = `tab-btn px-4 py-3 text-sm font-semibold border-b-2 transition ${
+      active ? 'text-indigo-700 border-indigo-600' : 'text-slate-600 border-transparent hover:text-slate-900 hover:border-slate-300'
+    }`;
+  });
+}
+
+function renderMezcla() {
+  const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo);
+  const kpis = calcKPIs(datos);
+  const ordenado = [...datos].sort((a,b) => b.monto_total - a.monto_total);
+
+  return `
+    <div class="mb-3 flex items-center justify-between">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Mezcla de portafolio</h3>
+        <p class="text-sm text-slate-600">${ASEGURADORAS[state.aseguradora].nombre} · ${ESPECIALIDADES[state.especialidad]} · ${state.periodo}</p>
+      </div>
+      <div class="text-xs text-slate-500">Ordenado por contribución al monto total</div>
+    </div>
+    <div class="overflow-x-auto -mx-5">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 border-y border-slate-200 text-xs uppercase tracking-wide text-slate-600">
+          <tr>
+            <th class="text-left px-5 py-3 font-semibold">Sub-procedimiento</th>
+            <th class="text-center px-3 py-3 font-semibold">Complejidad</th>
+            <th class="text-right px-3 py-3 font-semibold">Casos</th>
+            <th class="text-right px-3 py-3 font-semibold">Ticket prom.</th>
+            <th class="text-right px-3 py-3 font-semibold">% volumen</th>
+            <th class="text-right px-3 py-3 font-semibold">% monto</th>
+            <th class="text-right px-3 py-3 font-semibold">Margen</th>
+            <th class="text-right px-5 py-3 font-semibold">Margen contrib.</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${ordenado.map(p => {
+            const pctVol = (p.casos / kpis.totalCasos) * 100;
+            const pctMonto = (p.monto_total / kpis.totalMonto) * 100;
+            const complejColor = p.complejidad === 'alta' ? 'bg-red-50 text-red-700 border-red-200' :
+                                 p.complejidad === 'media' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            return `
+              <tr class="hover:bg-slate-50">
+                <td class="px-5 py-3 font-medium text-slate-900">${p.nombre}</td>
+                <td class="px-3 py-3 text-center"><span class="inline-block px-2 py-0.5 text-xs font-medium rounded border ${complejColor}">${p.complejidad}</span></td>
+                <td class="px-3 py-3 text-right tabular">${p.casos}</td>
+                <td class="px-3 py-3 text-right tabular">${fmtMXN(p.ticket)}</td>
+                <td class="px-3 py-3 text-right tabular text-slate-600">${pctVol.toFixed(1)}%</td>
+                <td class="px-3 py-3 text-right tabular font-semibold ${pctMonto > 15 ? 'text-red-700' : 'text-slate-700'}">${pctMonto.toFixed(1)}%</td>
+                <td class="px-3 py-3 text-right tabular">${fmtPct(p.margen)}</td>
+                <td class="px-5 py-3 text-right tabular font-semibold text-slate-900">${fmtMXNcompact(p.margen_total)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+        <tfoot class="bg-slate-50 border-t border-slate-200 font-semibold">
+          <tr>
+            <td class="px-5 py-3 text-slate-700">Total ${ESPECIALIDADES[state.especialidad].toLowerCase()}</td>
+            <td></td>
+            <td class="px-3 py-3 text-right tabular">${kpis.totalCasos}</td>
+            <td class="px-3 py-3 text-right tabular text-slate-600">${fmtMXN(kpis.montoMedio)} <span class="text-xs font-normal text-slate-500">prom.</span></td>
+            <td class="px-3 py-3 text-right tabular">100%</td>
+            <td class="px-3 py-3 text-right tabular">100%</td>
+            <td class="px-3 py-3 text-right tabular">${fmtPct(kpis.margenPct)}</td>
+            <td class="px-5 py-3 text-right tabular">${fmtMXNcompact(kpis.totalMargen)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-600 leading-relaxed">
+      <strong>Lectura:</strong> Los sub-procedimientos resaltados en rojo (% monto &gt; 15%) son los que más empujan el monto medio hacia arriba.
+      Si la aseguradora presiona por el promedio alto, la jugada está en reducir su peso relativo aumentando volumen de los de menor ticket
+      y mayor margen — ve a "Candidatos a push" para verlos priorizados.
+    </div>
+  `;
+}
+
+function renderCandidatos() {
+  const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo);
+  const candidatos = identificarCandidatos(datos);
+  const kpisActual = calcKPIs(datos);
+
+  return `
+    <div class="mb-4">
+      <h3 class="text-base font-bold text-slate-900">Candidatos a push</h3>
+      <p class="text-sm text-slate-600 mt-0.5">Sub-procedimientos con alto margen, bajo ticket y volumen subutilizado. Aumentar su volumen reduce el monto medio agregado y mejora la rentabilidad simultáneamente.</p>
+    </div>
+    ${candidatos.length === 0 ? `
+      <div class="text-center py-12 text-slate-500 text-sm">No se identificaron candidatos claros con los filtros actuales. Prueba con otra combinación aseguradora × especialidad.</div>
+    ` : `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        ${candidatos.map((p, i) => {
+          const proyMontoMedioSiDoble = ((kpisActual.totalMonto + p.casos * p.ticket) / (kpisActual.totalCasos + p.casos));
+          const deltaMontoMedio = proyMontoMedioSiDoble - kpisActual.montoMedio;
+          const pctDelta = (deltaMontoMedio / kpisActual.montoMedio) * 100;
+          return `
+            <div class="border border-slate-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition bg-white">
+              <div class="flex items-start justify-between mb-2">
+                <div>
+                  <div class="text-xs font-semibold text-indigo-700 uppercase tracking-wide">#${i+1} candidato</div>
+                  <div class="font-semibold text-slate-900 mt-1">${p.nombre}</div>
+                </div>
+                <div class="text-xs px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-medium">${fmtPct(p.margen)} margen</div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 mt-3 text-xs">
+                <div class="bg-slate-50 rounded p-2"><div class="text-slate-500 mb-0.5">Casos actuales</div><div class="font-semibold tabular text-slate-900">${p.casos}</div></div>
+                <div class="bg-slate-50 rounded p-2"><div class="text-slate-500 mb-0.5">Ticket</div><div class="font-semibold tabular text-slate-900">${fmtMXNcompact(p.ticket)}</div></div>
+                <div class="bg-slate-50 rounded p-2"><div class="text-slate-500 mb-0.5">Margen total</div><div class="font-semibold tabular text-slate-900">${fmtMXNcompact(p.margen_total)}</div></div>
+              </div>
+              <div class="mt-3 pt-3 border-t border-slate-100 text-xs leading-relaxed">
+                <div class="text-slate-600">Si <strong>duplicas el volumen</strong> a ${p.casos*2} casos:</div>
+                <div class="flex items-center gap-3 mt-1.5">
+                  <span class="${pctDelta < 0 ? 'text-emerald-700 arrow-down' : 'text-red-700 arrow-up'} font-medium tabular">${Math.abs(pctDelta).toFixed(1)}% monto medio</span>
+                  <span class="text-emerald-700 arrow-up font-medium tabular">${fmtMXNcompact(p.potencial_doble)} margen adicional</span>
+                </div>
+              </div>
+              <button onclick="addToSim('${p.id}', ${p.casos})" class="mt-3 w-full text-xs font-semibold py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded border border-indigo-200 transition">
+                Agregar al simulador (+${p.casos} casos)
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `}
+  `;
+}
+
+function renderSimulador() {
+  const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo);
+  const datosSim = aplicarSimulacion(datos, state.simulacion);
+  const kActual = calcKPIs(datos);
+  const kSim = calcKPIs(datosSim, true);
+  const gua = GUA_REFERENCIA[state.especialidad]?.[state.aseguradora] || 0;
+  const gapActual = gua > 0 ? (kActual.montoMedio - gua) / gua : 0;
+  const gapSim = gua > 0 ? (kSim.montoMedio - gua) / gua : 0;
+  const ordenado = [...datos].sort((a,b) => b.monto_total - a.monto_total);
+
+  return `
+    <div class="mb-4 flex items-start justify-between">
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Simulador de mezcla</h3>
+        <p class="text-sm text-slate-600 mt-0.5">Ajusta los volúmenes próximos 3 meses por sub-procedimiento. Los KPIs y la comparación de impacto se actualizan en vivo.</p>
+      </div>
+    </div>
+
+    <!-- Comparación de impacto -->
+    <div class="bg-gradient-to-br from-slate-50 to-indigo-50 border border-indigo-100 rounded-lg p-5 mb-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Situación actual</div>
+          <div class="space-y-2">
+            <div class="flex justify-between text-sm"><span class="text-slate-600">Casos totales:</span><span class="font-semibold tabular">${kActual.totalCasos}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-slate-600">Monto medio:</span><span class="font-semibold tabular">${fmtMXN(kActual.montoMedio)}</span></div>
+            <div class="flex justify-between text-sm"><span class="text-slate-600">vs GUA aseguradora:</span><span class="font-semibold tabular ${gapActual > 0.15 ? 'text-red-700' : gapActual > 0 ? 'text-amber-700' : 'text-emerald-700'}">${gapActual >= 0 ? '+' : ''}${(gapActual*100).toFixed(1)}%</span></div>
+            <div class="flex justify-between text-sm"><span class="text-slate-600">Margen contributivo:</span><span class="font-semibold tabular">${fmtMXNcompact(kActual.totalMargen)} (${fmtPct(kActual.margenPct)})</span></div>
+          </div>
+        </div>
+        <div class="border-l border-indigo-200 pl-4">
+          <div class="text-xs font-semibold uppercase tracking-wide text-indigo-700 mb-3">Con la mezcla simulada</div>
+          <div class="space-y-2">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-600">Casos totales:</span>
+              <span class="font-semibold tabular text-indigo-900">${kSim.totalCasos} <span class="text-xs font-medium ${kSim.totalCasos >= kActual.totalCasos ? 'text-emerald-700' : 'text-red-700'}">(${kSim.totalCasos >= kActual.totalCasos ? '+' : ''}${kSim.totalCasos - kActual.totalCasos})</span></span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-600">Monto medio:</span>
+              <span class="font-semibold tabular text-indigo-900">${fmtMXN(kSim.montoMedio)} <span class="text-xs font-medium ${kSim.montoMedio <= kActual.montoMedio ? 'text-emerald-700' : 'text-red-700'}">(${kSim.montoMedio >= kActual.montoMedio ? '+' : ''}${(((kSim.montoMedio - kActual.montoMedio)/kActual.montoMedio)*100).toFixed(1)}%)</span></span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-600">vs GUA aseguradora:</span>
+              <span class="font-semibold tabular ${gapSim > 0.15 ? 'text-red-700' : gapSim > 0 ? 'text-amber-700' : 'text-emerald-700'}">${gapSim >= 0 ? '+' : ''}${(gapSim*100).toFixed(1)}%</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-600">Margen contributivo:</span>
+              <span class="font-semibold tabular text-indigo-900">${fmtMXNcompact(kSim.totalMargen)} <span class="text-xs font-medium ${kSim.totalMargen >= kActual.totalMargen ? 'text-emerald-700' : 'text-red-700'}">(${kSim.totalMargen >= kActual.totalMargen ? '+' : ''}${(((kSim.totalMargen - kActual.totalMargen)/kActual.totalMargen)*100).toFixed(1)}%)</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sliders -->
+    <div class="space-y-2">
+      <div class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Ajustar volumen por sub-procedimiento</div>
+      ${ordenado.map(p => {
+        const delta = state.simulacion[p.id] || 0;
+        const casosSim = Math.max(0, p.casos + delta);
+        const maxDelta = Math.max(20, p.casos);
+        const complejColor = p.complejidad === 'alta' ? 'border-l-red-400' :
+                             p.complejidad === 'media' ? 'border-l-amber-400' :
+                             'border-l-emerald-400';
+        return `
+          <div class="border border-slate-200 border-l-4 ${complejColor} rounded-md p-3 bg-white">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="font-medium text-sm text-slate-900 truncate">${p.nombre}</div>
+                <div class="text-xs text-slate-500 mt-0.5">Ticket ${fmtMXN(p.ticket)} · Margen ${fmtPct(p.margen)}</div>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <span class="text-xs text-slate-500 tabular w-20 text-right">Actual: ${p.casos}</span>
+                <input type="range" min="${-p.casos}" max="${maxDelta}" value="${delta}" oninput="updateSim('${p.id}', this.value)" class="w-32">
+                <div class="flex items-center gap-1">
+                  <button onclick="updateSim('${p.id}', ${delta-1})" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold">−</button>
+                  <span class="font-semibold tabular w-12 text-center text-sm ${delta > 0 ? 'text-emerald-700' : delta < 0 ? 'text-red-700' : 'text-slate-900'}">${delta > 0 ? '+' : ''}${delta}</span>
+                  <button onclick="updateSim('${p.id}', ${delta+1})" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold">+</button>
+                </div>
+                <span class="text-xs font-semibold tabular w-16 text-right text-indigo-700">→ ${casosSim}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+
+    <!-- Story / interpretation -->
+    ${Object.keys(state.simulacion).some(k => state.simulacion[k] !== 0) ? `
+      <div class="mt-5 p-4 bg-indigo-600 text-white rounded-lg">
+        <div class="text-xs font-semibold uppercase tracking-wide opacity-80 mb-2">Interpretación de la simulación</div>
+        <p class="text-sm leading-relaxed">
+          Con la mezcla propuesta, el monto medio de ${ESPECIALIDADES[state.especialidad].toLowerCase()} con ${ASEGURADORAS[state.aseguradora].nombre}
+          ${kSim.montoMedio < kActual.montoMedio ? 'baja' : 'sube'} de ${fmtMXN(kActual.montoMedio)} a ${fmtMXN(kSim.montoMedio)}
+          (${(((kSim.montoMedio - kActual.montoMedio)/kActual.montoMedio)*100).toFixed(1)}%),
+          mientras el margen contributivo total ${kSim.totalMargen > kActual.totalMargen ? 'crece' : 'cae'} de ${fmtMXNcompact(kActual.totalMargen)} a ${fmtMXNcompact(kSim.totalMargen)}
+          (${kSim.totalMargen > kActual.totalMargen ? '+' : ''}${(((kSim.totalMargen - kActual.totalMargen)/kActual.totalMargen)*100).toFixed(1)}%).
+          ${kSim.montoMedio < kActual.montoMedio && kSim.totalMargen > kActual.totalMargen ?
+            ' Esta es la jugada ideal: reduce tensión con la aseguradora y mejora rentabilidad simultáneamente.' :
+            kSim.montoMedio < kActual.montoMedio ?
+            ' Reduce tensión con la aseguradora pero a costa de margen. Validar si vale la pena.' :
+            ' Sube el monto medio. Aumenta tensión con la aseguradora — replantear la mezcla.'}
+        </p>
+      </div>
+    ` : ''}
+  `;
+}
+
+function renderTabContent() {
+  const c = document.getElementById('tab-content');
+  if (state.tab === 'mezcla') c.innerHTML = renderMezcla();
+  else if (state.tab === 'candidatos') c.innerHTML = renderCandidatos();
+  else if (state.tab === 'simulador') c.innerHTML = renderSimulador();
+}
+
+function render() {
+  renderFilters();
+  renderKPIs();
+  renderTabs();
+  renderTabContent();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//                          EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════════════
+
+function setAseguradora(v) { state.aseguradora = v; state.simulacion = {}; render(); }
+function setEspecialidad(v) { state.especialidad = v; state.simulacion = {}; render(); }
+function setPeriodo(v) { state.periodo = v; render(); }
+function setTab(v) { state.tab = v; renderTabs(); renderTabContent(); }
+
+function updateSim(procId, delta) {
+  state.simulacion[procId] = parseInt(delta);
+  if (state.simulacion[procId] === 0) delete state.simulacion[procId];
+  renderKPIs();
+  renderTabContent();
+}
+
+function addToSim(procId, delta) {
+  state.simulacion[procId] = (state.simulacion[procId] || 0) + delta;
+  state.tab = 'simulador';
+  render();
+}
+
+function resetSimulation() {
+  state.simulacion = {};
+  render();
+}
+
+// Wire up events
+document.addEventListener('DOMContentLoaded', () => {
+  render();
+  document.getElementById('sel-aseguradora').addEventListener('change', e => setAseguradora(e.target.value));
+  document.getElementById('sel-especialidad').addEventListener('change', e => setEspecialidad(e.target.value));
+  document.getElementById('sel-periodo').addEventListener('change', e => setPeriodo(e.target.value));
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+  });
+});
+</script>
+</body>
+</html>
