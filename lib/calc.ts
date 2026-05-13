@@ -51,10 +51,13 @@ export interface Candidato extends ProcEnriquecido {
   potencial_doble: number;
 }
 
+// Calibrado para ~7,200 cirugías/año (≈ 600/mes), hospital 60 camas.
+// Casos promedio por (aseguradora × procedimiento × periodo 12m), antes de
+// modulación por perfil y hash determinístico. Verificable con `npm run verify`.
 const BASE_VOLUMEN: Record<'alta' | 'media' | 'baja', number> = {
-  alta: 12,
-  media: 18,
-  baja: 22,
+  alta: 4,
+  media: 5,
+  baja: 7,
 };
 
 function hash(...args: (string | number)[]): number {

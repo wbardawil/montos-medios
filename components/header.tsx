@@ -1,3 +1,5 @@
+import { HOSPITAL } from '@/lib/data/hospital';
+
 export function Header() {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -8,10 +10,14 @@ export function Header() {
           </div>
           <div>
             <div className="font-bold text-base leading-tight">
-              SAMMP <span className="font-normal text-slate-400 text-xs ml-1">Portfolio Mix Manager</span>
+              SAMMP{' '}
+              <span className="font-normal text-slate-400 text-xs ml-1">
+                Portfolio Mix Manager
+              </span>
             </div>
             <div className="text-xs text-slate-500">
-              Hospital privado · Dirección comercial · v0.1 PoC
+              {HOSPITAL.nombre} · {HOSPITAL.camas} camas · ~{HOSPITAL.cirugiasPromedioMes}{' '}
+              cirugías/mes · Dirección comercial
             </div>
           </div>
         </div>
