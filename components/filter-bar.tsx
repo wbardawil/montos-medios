@@ -22,9 +22,9 @@ export function FilterBar() {
   const aseguradoras = useAseguradoras();
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-4 mb-5">
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="flex-1 min-w-[200px]">
+    <div className="bg-white rounded-lg border border-slate-200 p-3 sm:p-4 mb-5">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-end gap-3 sm:gap-4">
+        <div className="col-span-2 sm:flex-1 sm:min-w-[200px]">
           <label className={LABEL_CLASS} htmlFor="sel-aseguradora">
             Aseguradora
           </label>
@@ -43,7 +43,7 @@ export function FilterBar() {
               ))}
           </select>
         </div>
-        <div className="flex-1 min-w-[200px]">
+        <div className="col-span-2 sm:flex-1 sm:min-w-[200px]">
           <label className={LABEL_CLASS} htmlFor="sel-especialidad">
             Especialidad
           </label>
@@ -65,7 +65,7 @@ export function FilterBar() {
               ))}
           </select>
         </div>
-        <div className="flex-1 min-w-[160px]">
+        <div className="col-span-1 sm:flex-1 sm:min-w-[160px]">
           <label className={LABEL_CLASS} htmlFor="sel-periodo">
             Periodo
           </label>
@@ -82,9 +82,15 @@ export function FilterBar() {
             ))}
           </select>
         </div>
-        <Button variant="secondary" onClick={() => dispatch({ type: 'RESET_SIM' })}>
-          Reiniciar simulación
-        </Button>
+        <div className="col-span-1 sm:flex-none flex sm:items-end">
+          <Button
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={() => dispatch({ type: 'RESET_SIM' })}
+          >
+            Reiniciar simulación
+          </Button>
+        </div>
       </div>
     </div>
   );

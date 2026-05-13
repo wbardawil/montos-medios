@@ -29,16 +29,107 @@ export function VistaMezcla() {
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h3 className="text-base font-bold text-slate-900">Mezcla de portafolio</h3>
           <p className="text-sm text-slate-600">
             {nombreAseguradora} · {especialidadLabel} · {state.periodo}
           </p>
         </div>
-        <div className="text-xs text-slate-500">Ordenado por contribución al monto total</div>
+        <div className="text-xs text-slate-500 hidden sm:block">
+          Ordenado por contribución al monto total
+        </div>
       </div>
-      <div className="overflow-x-auto -mx-5">
+
+      {/* Mobile: cards */}
+      <div className="sm:hidden space-y-2">
+        {ordenado.map((p) => {
+          const pctVol = (p.casos / kpis.totalCasos) * 100;
+          const pctMonto = (p.monto_total / kpis.totalMonto) * 100;
+          return (
+            <div
+              key={`${p.especialidadId}:${p.id}`}
+              className="border border-slate-200 rounded-md p-3 bg-white"
+            >
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <div className="font-medium text-sm text-slate-900 min-w-0">{p.nombre}</div>
+                <Badge tone={toneByComplejidad[p.complejidad]}>{p.complejidad}</Badge>
+              </div>
+              {esTodas && (
+                <div className="text-[10px] text-slate-600 mb-1">
+                  {ESPECIALIDADES[p.especialidadId]}
+                </div>
+              )}
+              <div className="text-[10px] text-slate-500 tabular-nums mb-2">
+                CIE-9 <span className="font-semibold text-slate-700">{p.cie9}</span> · CIE-10{' '}
+                <span className="font-semibold text-slate-700">{p.cie10}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-slate-50 rounded p-2">
+                  <div className="text-slate-500 mb-0.5">Casos</div>
+                  <div className="font-semibold tabular-nums">
+                    {p.casos}{' '}
+                    <span className="text-[10px] font-normal text-slate-500">
+                      ({pctVol.toFixed(1)}%)
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded p-2">
+                  <div className="text-slate-500 mb-0.5">Ticket prom.</div>
+                  <div className="font-semibold tabular-nums">{fmtMXN(p.ticket)}</div>
+                </div>
+                <div className="bg-slate-50 rounded p-2">
+                  <div className="text-slate-500 mb-0.5">% monto</div>
+                  <div
+                    className={cn(
+                      'font-semibold tabular-nums',
+                      pctMonto > 15 ? 'text-red-700' : 'text-slate-900',
+                    )}
+                  >
+                    {pctMonto.toFixed(1)}%
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded p-2">
+                  <div className="text-slate-500 mb-0.5">Margen</div>
+                  <div className="font-semibold tabular-nums">
+                    {fmtPct(p.margen)}{' '}
+                    <span className="text-[10px] font-normal text-slate-500">
+                      ({fmtMXNCompact(p.margen_total)})
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <div className="bg-slate-100 border border-slate-200 rounded-md p-3 text-xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-semibold text-slate-700">Total</span>
+            <span className="tabular-nums font-semibold">{kpis.totalCasos} casos</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1 text-[11px] text-slate-600">
+            <div>
+              Monto medio:{' '}
+              <strong className="text-slate-900">{fmtMXN(kpis.montoMedio)}</strong>
+            </div>
+            <div>
+              Margen:{' '}
+              <strong className="text-slate-900">{fmtPct(kpis.margenPct)}</strong>
+            </div>
+            <div>
+              Monto total:{' '}
+              <strong className="text-slate-900">{fmtMXNCompact(kpis.totalMonto)}</strong>
+            </div>
+            <div>
+              Margen contrib:{' '}
+              <strong className="text-slate-900">{fmtMXNCompact(kpis.totalMargen)}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: tabla */}
+      <div className="hidden sm:block overflow-x-auto -mx-5">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 border-y border-slate-200 text-xs uppercase tracking-wide text-slate-600">
             <tr>
@@ -122,7 +213,8 @@ export function VistaMezcla() {
         <strong>Lectura:</strong> Los sub-procedimientos resaltados en rojo (% monto &gt; 15%) son
         los que más empujan el monto medio hacia arriba. Si la aseguradora presiona por el promedio
         alto, la jugada está en reducir su peso relativo aumentando volumen de los de menor ticket y
-        mayor margen — ve a &quot;Candidatos a push&quot; para verlos priorizados.
+        mayor margen — ve a la pestaña <strong>Simulador</strong> y abre la sección
+        &quot;Candidatos a push&quot;.
       </div>
       <div className="mt-2 text-[10px] text-slate-400 leading-relaxed">
         Códigos CIE-9-MC (procedimiento) y CIE-10 (diagnóstico típico asociado) son ilustrativos.

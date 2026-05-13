@@ -145,52 +145,112 @@ export function VistaDashboard() {
             </span>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={360}>
-          <BarChart data={porEspecialidad} margin={{ top: 10, right: 20, left: 10, bottom: 70 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis
-              dataKey="especialidad"
-              tick={{ fontSize: 10 }}
-              interval={0}
-              angle={-35}
-              textAnchor="end"
-              height={80}
-            />
-            <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} tick={{ fontSize: 11 }} />
-            <Tooltip
-              formatter={(v: number) => fmtMXN(v)}
-              labelStyle={{ color: '#0f172a', fontWeight: 600 }}
-            />
-            <Legend wrapperStyle={{ display: 'none' }} />
-            <Bar
-              dataKey="montoMedio"
-              fill="#4f46e5"
-              name="Monto medio"
-              radius={[4, 4, 0, 0]}
-              cursor="pointer"
+        {/* Mobile: horizontal */}
+        <div className="sm:hidden">
+          <ResponsiveContainer width="100%" height={Math.max(280, porEspecialidad.length * 28)}>
+            <BarChart
+              data={porEspecialidad}
+              layout="vertical"
+              margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
             >
-              {porEspecialidad.map((entry) => {
-                let color = '#4f46e5';
-                if (entry.gua > 0) {
-                  const ratio = entry.montoMedio / entry.gua;
-                  if (ratio > 1.15) color = '#dc2626';
-                  else if (ratio > 1.0) color = '#f59e0b';
-                  else color = '#10b981';
-                }
-                return (
-                  <Cell
-                    key={entry.especialidadId}
-                    fill={color}
-                    onClick={() =>
-                      dispatch({ type: 'SET_ESPECIALIDAD', value: entry.especialidadId })
-                    }
-                  />
-                );
-              })}
-            </Bar>
-            <Bar dataKey="gua" fill="#94a3b8" name="GUA" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                type="number"
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`}
+                tick={{ fontSize: 10 }}
+              />
+              <YAxis
+                type="category"
+                dataKey="especialidad"
+                tick={{ fontSize: 10 }}
+                width={120}
+                interval={0}
+              />
+              <Tooltip
+                formatter={(v: number) => fmtMXN(v)}
+                labelStyle={{ color: '#0f172a', fontWeight: 600 }}
+              />
+              <Legend wrapperStyle={{ display: 'none' }} />
+              <Bar dataKey="montoMedio" name="Monto medio" radius={[0, 4, 4, 0]}>
+                {porEspecialidad.map((entry) => {
+                  let color = '#4f46e5';
+                  if (entry.gua > 0) {
+                    const ratio = entry.montoMedio / entry.gua;
+                    if (ratio > 1.15) color = '#dc2626';
+                    else if (ratio > 1.0) color = '#f59e0b';
+                    else color = '#10b981';
+                  }
+                  return (
+                    <Cell
+                      key={entry.especialidadId}
+                      fill={color}
+                      onClick={() =>
+                        dispatch({ type: 'SET_ESPECIALIDAD', value: entry.especialidadId })
+                      }
+                    />
+                  );
+                })}
+              </Bar>
+              <Bar dataKey="gua" fill="#94a3b8" name="GUA" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Desktop: vertical */}
+        <div className="hidden sm:block">
+          <ResponsiveContainer width="100%" height={360}>
+            <BarChart
+              data={porEspecialidad}
+              margin={{ top: 10, right: 20, left: 10, bottom: 70 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="especialidad"
+                tick={{ fontSize: 10 }}
+                interval={0}
+                angle={-35}
+                textAnchor="end"
+                height={80}
+              />
+              <YAxis
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`}
+                tick={{ fontSize: 11 }}
+              />
+              <Tooltip
+                formatter={(v: number) => fmtMXN(v)}
+                labelStyle={{ color: '#0f172a', fontWeight: 600 }}
+              />
+              <Legend wrapperStyle={{ display: 'none' }} />
+              <Bar
+                dataKey="montoMedio"
+                fill="#4f46e5"
+                name="Monto medio"
+                radius={[4, 4, 0, 0]}
+                cursor="pointer"
+              >
+                {porEspecialidad.map((entry) => {
+                  let color = '#4f46e5';
+                  if (entry.gua > 0) {
+                    const ratio = entry.montoMedio / entry.gua;
+                    if (ratio > 1.15) color = '#dc2626';
+                    else if (ratio > 1.0) color = '#f59e0b';
+                    else color = '#10b981';
+                  }
+                  return (
+                    <Cell
+                      key={entry.especialidadId}
+                      fill={color}
+                      onClick={() =>
+                        dispatch({ type: 'SET_ESPECIALIDAD', value: entry.especialidadId })
+                      }
+                    />
+                  );
+                })}
+              </Bar>
+              <Bar dataKey="gua" fill="#94a3b8" name="GUA" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Por aseguradora */}
@@ -201,60 +261,117 @@ export function VistaDashboard() {
               Monto medio por aseguradora · hospital completo
             </h4>
             <p className="text-xs text-slate-500 mt-0.5">
-              Promedio ponderado por casos across todas las especialidades. Línea punteada = promedio
-              hospital.
+              Promedio ponderado por casos across todas las especialidades. Línea punteada =
+              promedio hospital.
             </p>
           </div>
-          <span className="text-xs text-slate-600">Click en una barra para seleccionarla</span>
+          <span className="text-xs text-slate-600 hidden sm:inline">
+            Click en una barra para seleccionarla
+          </span>
         </div>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart
-            data={porAseguradora}
-            margin={{ top: 10, right: 20, left: 10, bottom: 50 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis
-              dataKey="aseguradora"
-              tick={{ fontSize: 10 }}
-              interval={0}
-              angle={-35}
-              textAnchor="end"
-            />
-            <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} tick={{ fontSize: 11 }} />
-            <Tooltip
-              formatter={(v: number) => fmtMXN(v)}
-              labelStyle={{ color: '#0f172a', fontWeight: 600 }}
-            />
-            <ReferenceLine
-              y={montoMedioHospital}
-              stroke="#64748b"
-              strokeDasharray="4 4"
-              label={{
-                value: `Hospital: ${fmtMXN(montoMedioHospital)}`,
-                position: 'insideTopRight',
-                fontSize: 10,
-                fill: '#475569',
-              }}
-            />
-            <Bar
-              dataKey="montoMedio"
-              fill="#4f46e5"
-              name="Monto medio"
-              radius={[4, 4, 0, 0]}
-              cursor="pointer"
+
+        {/* Mobile: horizontal bars */}
+        <div className="sm:hidden">
+          <ResponsiveContainer width="100%" height={Math.max(280, porAseguradora.length * 28)}>
+            <BarChart
+              data={porAseguradora}
+              layout="vertical"
+              margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
             >
-              {porAseguradora.map((entry) => (
-                <Cell
-                  key={entry.aseguradoraId}
-                  fill={entry.aseguradoraId === state.aseguradora ? '#10b981' : '#4f46e5'}
-                  onClick={() =>
-                    dispatch({ type: 'SET_ASEGURADORA', value: entry.aseguradoraId })
-                  }
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                type="number"
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`}
+                tick={{ fontSize: 10 }}
+              />
+              <YAxis
+                type="category"
+                dataKey="aseguradora"
+                tick={{ fontSize: 10 }}
+                width={110}
+                interval={0}
+              />
+              <Tooltip
+                formatter={(v: number) => fmtMXN(v)}
+                labelStyle={{ color: '#0f172a', fontWeight: 600 }}
+              />
+              <ReferenceLine
+                x={montoMedioHospital}
+                stroke="#64748b"
+                strokeDasharray="4 4"
+              />
+              <Bar dataKey="montoMedio" name="Monto medio" radius={[0, 4, 4, 0]}>
+                {porAseguradora.map((entry) => (
+                  <Cell
+                    key={entry.aseguradoraId}
+                    fill={entry.aseguradoraId === state.aseguradora ? '#10b981' : '#4f46e5'}
+                    onClick={() =>
+                      dispatch({ type: 'SET_ASEGURADORA', value: entry.aseguradoraId })
+                    }
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="text-[10px] text-slate-500 mt-1">
+            Línea gris = promedio hospital ({fmtMXN(montoMedioHospital)}). Tap para seleccionar.
+          </div>
+        </div>
+
+        {/* Desktop: vertical bars */}
+        <div className="hidden sm:block">
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart
+              data={porAseguradora}
+              margin={{ top: 10, right: 20, left: 10, bottom: 50 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="aseguradora"
+                tick={{ fontSize: 10 }}
+                interval={0}
+                angle={-35}
+                textAnchor="end"
+              />
+              <YAxis
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`}
+                tick={{ fontSize: 11 }}
+              />
+              <Tooltip
+                formatter={(v: number) => fmtMXN(v)}
+                labelStyle={{ color: '#0f172a', fontWeight: 600 }}
+              />
+              <ReferenceLine
+                y={montoMedioHospital}
+                stroke="#64748b"
+                strokeDasharray="4 4"
+                label={{
+                  value: `Hospital: ${fmtMXN(montoMedioHospital)}`,
+                  position: 'insideTopRight',
+                  fontSize: 10,
+                  fill: '#475569',
+                }}
+              />
+              <Bar
+                dataKey="montoMedio"
+                fill="#4f46e5"
+                name="Monto medio"
+                radius={[4, 4, 0, 0]}
+                cursor="pointer"
+              >
+                {porAseguradora.map((entry) => (
+                  <Cell
+                    key={entry.aseguradoraId}
+                    fill={entry.aseguradoraId === state.aseguradora ? '#10b981' : '#4f46e5'}
+                    onClick={() =>
+                      dispatch({ type: 'SET_ASEGURADORA', value: entry.aseguradoraId })
+                    }
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div className="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-600 leading-relaxed">

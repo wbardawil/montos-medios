@@ -713,17 +713,14 @@ export function VistaSimulador() {
                 borderByComplejidad[p.complejidad],
               )}
             >
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex-1 min-w-[200px]">
-                  <div className="font-medium text-sm text-slate-900 truncate">{p.nombre}</div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                <div className="min-w-0 sm:flex-1">
+                  <div className="font-medium text-sm text-slate-900">{p.nombre}</div>
                   <div className="text-xs text-slate-500 mt-0.5">
-                    Ticket {fmtMXN(p.ticket)} · Margen {fmtPct(p.margen)}
+                    Ticket {fmtMXN(p.ticket)} · Margen {fmtPct(p.margen)} · Actual {p.casos}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className="text-xs text-slate-500 tabular-nums w-20 text-right">
-                    Actual: {p.casos}
-                  </span>
+                <div className="flex items-center gap-2 sm:gap-3 sm:flex-shrink-0">
                   <input
                     type="range"
                     min={-p.casos}
@@ -732,12 +729,13 @@ export function VistaSimulador() {
                     onChange={(e) =>
                       dispatch({ type: 'UPDATE_SIM', procId: p.id, delta: parseInt(e.target.value) })
                     }
-                    className="w-32 accent-indigo-600"
+                    className="flex-1 sm:w-32 sm:flex-none accent-indigo-600"
                   />
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <Button
                       variant="secondary"
                       size="icon"
+                      aria-label="Disminuir volumen"
                       onClick={() =>
                         dispatch({ type: 'UPDATE_SIM', procId: p.id, delta: delta - 1 })
                       }
@@ -746,7 +744,7 @@ export function VistaSimulador() {
                     </Button>
                     <span
                       className={cn(
-                        'font-semibold tabular-nums w-12 text-center text-sm',
+                        'font-semibold tabular-nums w-10 sm:w-12 text-center text-sm',
                         delta > 0
                           ? 'text-emerald-700'
                           : delta < 0
@@ -760,6 +758,7 @@ export function VistaSimulador() {
                     <Button
                       variant="secondary"
                       size="icon"
+                      aria-label="Aumentar volumen"
                       onClick={() =>
                         dispatch({ type: 'UPDATE_SIM', procId: p.id, delta: delta + 1 })
                       }
@@ -767,7 +766,7 @@ export function VistaSimulador() {
                       +
                     </Button>
                   </div>
-                  <span className="text-xs font-semibold tabular-nums w-16 text-right text-indigo-700">
+                  <span className="text-xs font-semibold tabular-nums w-14 sm:w-16 text-right text-indigo-700 flex-shrink-0">
                     → {casosSim}
                   </span>
                 </div>

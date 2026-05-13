@@ -510,7 +510,96 @@ export function VistaConfig() {
           </p>
         </div>
 
-        <div className="overflow-x-auto -mx-4">
+        {/* Mobile: cards */}
+        <div className="sm:hidden space-y-2">
+          {procs.map((p) => {
+            const ov = draft.procedimientos[p.id] ?? {};
+            const aplicado = state.overrides.procedimientos[p.id] ?? {};
+            const isDirty = ov.ticket !== aplicado.ticket || ov.margen !== aplicado.margen;
+            return (
+              <div
+                key={p.id}
+                className={cn(
+                  'border rounded-md p-3',
+                  isDirty ? 'bg-amber-50/40 border-amber-200' : 'border-slate-200 bg-white',
+                )}
+              >
+                <div className="font-medium text-sm text-slate-900 mb-1">{p.nombre}</div>
+                <div className="text-[10px] text-slate-500 tabular-nums mb-2">CIE-9 {p.cie9}</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                      Ticket base
+                    </label>
+                    <div className="text-xs tabular-nums text-slate-500 px-2 py-1">
+                      {fmtMXN(p.baseTicket)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                      Ticket override
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step={1000}
+                      min={0}
+                      placeholder="—"
+                      className={cn(INPUT_CLASS, 'text-right')}
+                      value={ov.ticket ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value === '' ? undefined : Number(e.target.value);
+                        setProcDraft(p.id, 'ticket', Number.isFinite(v) ? v : undefined);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                      Margen base
+                    </label>
+                    <div className="text-xs tabular-nums text-slate-500 px-2 py-1">
+                      {fmtPct(p.baseMargen)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                      Margen override (%)
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step={1}
+                        min={0}
+                        max={100}
+                        placeholder="—"
+                        className={cn(INPUT_CLASS, 'text-right')}
+                        value={
+                          ov.margen !== undefined ? Math.round(ov.margen * 1000) / 10 : ''
+                        }
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setProcDraft(p.id, 'margen', undefined);
+                            return;
+                          }
+                          const v = Number(raw);
+                          if (!Number.isFinite(v)) return;
+                          const clamped = Math.max(0, Math.min(100, v));
+                          setProcDraft(p.id, 'margen', clamped / 100);
+                        }}
+                      />
+                      <span className="text-xs text-slate-400">%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop: tabla */}
+        <div className="hidden sm:block overflow-x-auto -mx-4">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600 border-y border-slate-200">
               <tr>
@@ -538,6 +627,7 @@ export function VistaConfig() {
                     <td className="px-2 py-2 text-right">
                       <input
                         type="number"
+                        inputMode="decimal"
                         step={1000}
                         min={0}
                         placeholder="—"
@@ -556,6 +646,7 @@ export function VistaConfig() {
                       <div className="flex items-center justify-end gap-1">
                         <input
                           type="number"
+                          inputMode="decimal"
                           step={1}
                           min={0}
                           max={100}
