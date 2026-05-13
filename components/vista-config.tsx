@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { ASEGURADORAS, ASEGURADORA_IDS, type AseguradoraId } from '@/lib/data/aseguradoras';
+import { useEffect, useMemo, useState } from 'react';
+import { ASEGURADORAS, type AseguradoraId } from '@/lib/data/aseguradoras';
 import { ESPECIALIDADES, ESPECIALIDAD_IDS, type EspecialidadId } from '@/lib/data/especialidades';
 import { GUA_REFERENCIA } from '@/lib/data/gua';
 import { SUBPROCEDIMIENTOS } from '@/lib/data/procedimientos';
 import { fmtMXN, fmtPct } from '@/lib/format';
-import { guaKey, useAppState } from '@/lib/state';
+import { guaKey, useAppState, type Overrides, type ProcOverride } from '@/lib/state';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
@@ -14,19 +14,111 @@ import { cn } from '@/lib/utils';
 const INPUT_CLASS =
   'w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500';
 
+function cleanProc(o: ProcOverride): ProcOverride | null {
+  const r: ProcOverride = {};
+  if (typeof o.ticket === 'number' && Number.isFinite(o.ticket)) r.ticket = o.ticket;
+  if (typeof o.margen === 'number' && Number.isFinite(o.margen)) r.margen = o.margen;
+  return r.ticket === undefined && r.margen === undefined ? null : r;
+}
+
+function normalizar(o: Overrides): Overrides {
+  const procs: Record<string, ProcOverride> = {};
+  for (const [id, ov] of Object.entries(o.procedimientos)) {
+    const c = cleanProc(ov);
+    if (c) procs[id] = c;
+  }
+  const gua: Record<string, number> = {};
+  for (const [k, v] of Object.entries(o.gua)) {
+    if (typeof v === 'number' && Number.isFinite(v)) gua[k] = v;
+  }
+  return { procedimientos: procs, gua };
+}
+
+function contarCambios(draft: Overrides, base: Overrides): number {
+  let n = 0;
+  const allProcIds = new Set([
+    ...Object.keys(draft.procedimientos),
+    ...Object.keys(base.procedimientos),
+  ]);
+  for (const id of allProcIds) {
+    const a = draft.procedimientos[id] ?? {};
+    const b = base.procedimientos[id] ?? {};
+    if (a.ticket !== b.ticket) n++;
+    if (a.margen !== b.margen) n++;
+  }
+  const allGuaKeys = new Set([...Object.keys(draft.gua), ...Object.keys(base.gua)]);
+  for (const k of allGuaKeys) {
+    if (draft.gua[k] !== base.gua[k]) n++;
+  }
+  return n;
+}
+
 export function VistaConfig() {
   const { state, dispatch } = useAppState();
-  const [especialidadEditando, setEspecialidadEditando] = useState<EspecialidadId>(
-    state.especialidad,
-  );
-  const [aseguradoraEditando, setAseguradoraEditando] = useState<AseguradoraId>(state.aseguradora);
+  const especialidadEditando: EspecialidadId = state.especialidad;
+  const aseguradoraEditando: AseguradoraId = state.aseguradora;
+  const [draft, setDraft] = useState<Overrides>(state.overrides);
   const [jsonExport, setJsonExport] = useState('');
   const [importError, setImportError] = useState('');
+  const [feedbackGuardar, setFeedbackGuardar] = useState('');
+
+  useEffect(() => {
+    setDraft(state.overrides);
+  }, [state.overrides]);
+
+  const cambiosPendientes = useMemo(() => contarCambios(draft, state.overrides), [
+    draft,
+    state.overrides,
+  ]);
 
   const procs = SUBPROCEDIMIENTOS[especialidadEditando];
   const numOverridesProc = Object.keys(state.overrides.procedimientos).length;
   const numOverridesGua = Object.keys(state.overrides.gua).length;
-  const hayOverrides = numOverridesProc + numOverridesGua > 0;
+  const hayOverridesAplicados = numOverridesProc + numOverridesGua > 0;
+
+  const setProcDraft = (procId: string, field: 'ticket' | 'margen', value: number | undefined) => {
+    setDraft((d) => {
+      const next: Overrides = {
+        procedimientos: { ...d.procedimientos },
+        gua: { ...d.gua },
+      };
+      const current = { ...(next.procedimientos[procId] ?? {}) };
+      if (value === undefined) delete current[field];
+      else current[field] = value;
+      if (current.ticket === undefined && current.margen === undefined) {
+        delete next.procedimientos[procId];
+      } else {
+        next.procedimientos[procId] = current;
+      }
+      return next;
+    });
+  };
+
+  const setGuaDraft = (a: AseguradoraId, e: EspecialidadId, value: number | undefined) => {
+    setDraft((d) => {
+      const next: Overrides = {
+        procedimientos: { ...d.procedimientos },
+        gua: { ...d.gua },
+      };
+      const k = guaKey(a, e);
+      if (value === undefined) delete next.gua[k];
+      else next.gua[k] = value;
+      return next;
+    });
+  };
+
+  const handleGuardar = () => {
+    const limpio = normalizar(draft);
+    dispatch({ type: 'IMPORT_OVERRIDES', overrides: limpio });
+    setFeedbackGuardar('Configuración guardada en este navegador');
+    setTimeout(() => setFeedbackGuardar(''), 3000);
+  };
+
+  const handleDescartar = () => {
+    setDraft(state.overrides);
+    setFeedbackGuardar('Cambios descartados');
+    setTimeout(() => setFeedbackGuardar(''), 2000);
+  };
 
   const exportJSON = () => {
     setJsonExport(JSON.stringify(state.overrides, null, 2));
@@ -37,12 +129,14 @@ export function VistaConfig() {
     try {
       const parsed = JSON.parse(text);
       if (!parsed || typeof parsed !== 'object') throw new Error('JSON inválido');
-      const overrides = {
+      const overrides: Overrides = {
         procedimientos: parsed.procedimientos ?? {},
         gua: parsed.gua ?? {},
       };
       dispatch({ type: 'IMPORT_OVERRIDES', overrides });
       setImportError('');
+      setFeedbackGuardar('Overrides importados');
+      setTimeout(() => setFeedbackGuardar(''), 3000);
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'JSON inválido');
     }
@@ -54,20 +148,54 @@ export function VistaConfig() {
         <div>
           <h3 className="text-base font-bold text-slate-900">Configuración on-the-fly</h3>
           <p className="text-sm text-slate-600 mt-0.5">
-            Ajusta tickets, márgenes y GUA durante una sesión. Los cambios se guardan en este
-            navegador (localStorage) — no se comparten ni se persisten en backend.
+            Edita tickets, márgenes y GUA. Tus cambios viven en un &quot;borrador&quot; hasta que
+            das <strong>Guardar</strong>. Solo entonces se aplican al resto de las pestañas y
+            quedan persistidos en este navegador.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {hayOverrides && (
+          {hayOverridesAplicados && (
             <Badge tone="indigo">
-              {numOverridesProc} proc · {numOverridesGua} GUA
+              {numOverridesProc} proc · {numOverridesGua} GUA aplicados
             </Badge>
           )}
-          <Button variant="secondary" size="sm" onClick={exportJSON}>
-            Exportar JSON
+        </div>
+      </div>
+
+      {/* Barra de Guardar */}
+      <div
+        className={cn(
+          'sticky top-[64px] z-10 mb-5 rounded-lg border p-3 flex items-center justify-between gap-3 flex-wrap',
+          cambiosPendientes > 0
+            ? 'bg-amber-50 border-amber-300'
+            : 'bg-slate-50 border-slate-200',
+        )}
+      >
+        <div className="flex items-center gap-3 flex-wrap">
+          {cambiosPendientes > 0 ? (
+            <span className="text-sm font-semibold text-amber-900">
+              ⚠ {cambiosPendientes} cambio{cambiosPendientes === 1 ? '' : 's'} sin guardar
+            </span>
+          ) : (
+            <span className="text-sm text-slate-600">Sin cambios pendientes</span>
+          )}
+          {feedbackGuardar && (
+            <span className="text-xs font-semibold text-emerald-700">✓ {feedbackGuardar}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleDescartar}
+            disabled={cambiosPendientes === 0}
+          >
+            Descartar
           </Button>
-          {hayOverrides && (
+          <Button onClick={handleGuardar} disabled={cambiosPendientes === 0}>
+            Guardar cambios
+          </Button>
+          {hayOverridesAplicados && (
             <Button
               variant="secondary"
               size="sm"
@@ -84,30 +212,15 @@ export function VistaConfig() {
 
       {/* Tickets y márgenes por procedimiento */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 mb-5">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900">Tickets y márgenes por procedimiento</h4>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Editar el valor base que aplica para todas las aseguradoras. La variación por
-              aseguradora (hash determinístico) se mantiene.
-            </p>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">
-              Especialidad
-            </label>
-            <select
-              className="bg-slate-50 border border-slate-300 rounded-md px-3 py-1.5 text-sm font-medium"
-              value={especialidadEditando}
-              onChange={(e) => setEspecialidadEditando(e.target.value as EspecialidadId)}
-            >
-              {ESPECIALIDAD_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {ESPECIALIDADES[id]}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="mb-3">
+          <h4 className="text-sm font-bold text-slate-900">
+            Tickets y márgenes · {ESPECIALIDADES[especialidadEditando]}
+          </h4>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Edita el valor base que aplica para todas las aseguradoras. La variación por aseguradora
+            (hash determinístico) se mantiene. Para editar otra especialidad, cámbiala en el filtro de
+            arriba.
+          </p>
         </div>
 
         <div className="overflow-x-auto -mx-4">
@@ -124,9 +237,12 @@ export function VistaConfig() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {procs.map((p) => {
-                const ov = state.overrides.procedimientos[p.id] ?? {};
+                const ov = draft.procedimientos[p.id] ?? {};
+                const aplicado = state.overrides.procedimientos[p.id] ?? {};
+                const isDirty =
+                  ov.ticket !== aplicado.ticket || ov.margen !== aplicado.margen;
                 return (
-                  <tr key={p.id} className={cn(ov.ticket !== undefined || ov.margen !== undefined ? 'bg-indigo-50/40' : '')}>
+                  <tr key={p.id} className={cn(isDirty ? 'bg-amber-50/40' : '')}>
                     <td className="px-4 py-2 font-medium text-slate-900">{p.nombre}</td>
                     <td className="px-2 py-2 text-xs text-slate-500 tabular-nums">{p.cie9}</td>
                     <td className="px-2 py-2 text-right tabular-nums text-slate-500">
@@ -142,12 +258,7 @@ export function VistaConfig() {
                         value={ov.ticket ?? ''}
                         onChange={(e) => {
                           const v = e.target.value === '' ? undefined : Number(e.target.value);
-                          dispatch({
-                            type: 'SET_PROC_OVERRIDE',
-                            procId: p.id,
-                            field: 'ticket',
-                            value: Number.isFinite(v) ? v : undefined,
-                          });
+                          setProcDraft(p.id, 'ticket', Number.isFinite(v) ? v : undefined);
                         }}
                       />
                     </td>
@@ -166,12 +277,7 @@ export function VistaConfig() {
                           value={ov.margen ?? ''}
                           onChange={(e) => {
                             const v = e.target.value === '' ? undefined : Number(e.target.value);
-                            dispatch({
-                              type: 'SET_PROC_OVERRIDE',
-                              procId: p.id,
-                              field: 'margen',
-                              value: Number.isFinite(v) ? v : undefined,
-                            });
+                            setProcDraft(p.id, 'margen', Number.isFinite(v) ? v : undefined);
                           }}
                         />
                         <span className="text-xs text-slate-400">0–1</span>
@@ -187,43 +293,28 @@ export function VistaConfig() {
 
       {/* GUA por aseguradora x especialidad */}
       <div className="bg-white border border-slate-200 rounded-lg p-4 mb-5">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900">
-              GUA por aseguradora × especialidad
-            </h4>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Edita el monto medio que reconoce la aseguradora. Afecta la comparación &quot;vs GUA&quot;
-              en KPIs y simulador.
-            </p>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">
-              Aseguradora
-            </label>
-            <select
-              className="bg-slate-50 border border-slate-300 rounded-md px-3 py-1.5 text-sm font-medium"
-              value={aseguradoraEditando}
-              onChange={(e) => setAseguradoraEditando(e.target.value as AseguradoraId)}
-            >
-              {ASEGURADORA_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {ASEGURADORAS[id].nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="mb-3">
+          <h4 className="text-sm font-bold text-slate-900">
+            GUA · {ASEGURADORAS[aseguradoraEditando].nombre}
+          </h4>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Monto medio que reconoce la aseguradora por especialidad. Afecta la comparación &quot;vs
+            GUA&quot;. Para editar otra aseguradora, cámbiala en el filtro de arriba.
+          </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {ESPECIALIDAD_IDS.map((espId) => {
             const baseGua = GUA_REFERENCIA[espId][aseguradoraEditando];
-            const ov = state.overrides.gua[guaKey(aseguradoraEditando, espId)];
+            const k = guaKey(aseguradoraEditando, espId);
+            const ov = draft.gua[k];
+            const aplicado = state.overrides.gua[k];
+            const isDirty = ov !== aplicado;
             return (
               <div
                 key={espId}
                 className={cn(
-                  'border border-slate-200 rounded-md p-3 flex items-center justify-between gap-3',
-                  ov !== undefined ? 'bg-indigo-50/40' : 'bg-white',
+                  'border rounded-md p-3 flex items-center justify-between gap-3',
+                  isDirty ? 'bg-amber-50/40 border-amber-200' : 'bg-white border-slate-200',
                 )}
               >
                 <div className="min-w-0">
@@ -241,12 +332,7 @@ export function VistaConfig() {
                   value={ov ?? ''}
                   onChange={(e) => {
                     const v = e.target.value === '' ? undefined : Number(e.target.value);
-                    dispatch({
-                      type: 'SET_GUA_OVERRIDE',
-                      aseguradora: aseguradoraEditando,
-                      especialidad: espId,
-                      value: Number.isFinite(v) ? v : undefined,
-                    });
+                    setGuaDraft(aseguradoraEditando, espId, Number.isFinite(v) ? v : undefined);
                   }}
                 />
               </div>
@@ -257,9 +343,15 @@ export function VistaConfig() {
 
       {/* Import / Export */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
-        <h4 className="text-sm font-bold text-slate-900 mb-1">Exportar / importar overrides</h4>
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+          <h4 className="text-sm font-bold text-slate-900">Exportar / importar overrides</h4>
+          <Button variant="secondary" size="sm" onClick={exportJSON}>
+            Exportar JSON
+          </Button>
+        </div>
         <p className="text-xs text-slate-500 mb-3">
-          Para compartir el escenario con otra persona o respaldarlo. Pega un JSON para cargarlo.
+          Para compartir el escenario o respaldarlo. Pega un JSON para cargarlo (aplica
+          inmediatamente, sin pasar por el botón Guardar).
         </p>
         <textarea
           className="w-full h-32 font-mono text-xs bg-slate-50 border border-slate-300 rounded p-2"
@@ -276,9 +368,9 @@ export function VistaConfig() {
       </div>
 
       <div className="mt-5 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 leading-relaxed">
-        <strong>Persistencia:</strong> los overrides viven en localStorage del navegador. Refrescar
-        la pestaña los conserva. Limpiar caché del navegador los borra. Para llevar la
-        configuración a otra computadora, exporta el JSON y pégalo allá.
+        <strong>Persistencia:</strong> los overrides aplicados (no los borradores) viven en
+        localStorage del navegador. Refrescar la pestaña los conserva. Limpiar caché los borra. Para
+        llevar la configuración a otra computadora, exporta el JSON y pégalo allá.
       </div>
     </>
   );

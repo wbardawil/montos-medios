@@ -132,10 +132,17 @@ export function VistaDashboard() {
             </span>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={porEspecialidad} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+        <ResponsiveContainer width="100%" height={360}>
+          <BarChart data={porEspecialidad} margin={{ top: 10, right: 20, left: 10, bottom: 70 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis dataKey="especialidad" tick={{ fontSize: 11 }} interval={0} />
+            <XAxis
+              dataKey="especialidad"
+              tick={{ fontSize: 10 }}
+              interval={0}
+              angle={-35}
+              textAnchor="end"
+              height={80}
+            />
             <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} tick={{ fontSize: 11 }} />
             <Tooltip
               formatter={(v: number) => fmtMXN(v)}

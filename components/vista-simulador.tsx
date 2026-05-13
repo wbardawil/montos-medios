@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ASEGURADORAS } from '@/lib/data/aseguradoras';
 import { ESPECIALIDADES } from '@/lib/data/especialidades';
 import {
@@ -8,6 +8,7 @@ import {
   calcImpactoVsGUA,
   calcKPIs,
   generarDatos,
+  type ProcEnriquecido,
 } from '@/lib/calc';
 import {
   DEFAULT_CONFIG,
@@ -15,8 +16,10 @@ import {
   type ConfigOptimizador,
   type ObjetivoOptimizacion,
 } from '@/lib/optimizer';
+import { evaluarPaquetes, type IntencionPaquete } from '@/lib/paquetes';
 import { fmtMXN, fmtMXNCompact, fmtPct } from '@/lib/format';
 import { useAppState } from '@/lib/state';
+import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +35,18 @@ const OBJETIVO_LABELS: Record<ObjetivoOptimizacion, string> = {
   balanceado: 'Balanceado',
 };
 
+const INTENCION_LABELS: Record<IntencionPaquete, string> = {
+  bajar: 'Bajar monto medio',
+  subir: 'Subir monto medio',
+  margen: 'Maximizar margen',
+};
+
+const INTENCION_TONE: Record<IntencionPaquete, 'emerald' | 'indigo' | 'amber'> = {
+  bajar: 'emerald',
+  subir: 'indigo',
+  margen: 'amber',
+};
+
 export function VistaSimulador() {
   const { state, dispatch } = useAppState();
   const [config, setConfig] = useState<ConfigOptimizador>(DEFAULT_CONFIG);
@@ -39,6 +54,7 @@ export function VistaSimulador() {
     iteraciones: number;
     cambios: number;
   } | null>(null);
+  const [intencionFiltro, setIntencionFiltro] = useState<IntencionPaquete | 'todas'>('todas');
 
   const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo, state.overrides);
   const datosSim = aplicarSimulacion(datos, state.simulacion);
@@ -48,6 +64,15 @@ export function VistaSimulador() {
   const impactoSim = calcImpactoVsGUA(kSim, state.aseguradora, state.especialidad, state.overrides);
   const ordenado = [...datos].sort((a, b) => b.monto_total - a.monto_total);
   const tieneSim = Object.values(state.simulacion).some((v) => v !== 0);
+
+  const paquetesResultados = useMemo(() => evaluarPaquetes(datos), [datos]);
+  const paquetesFiltrados = paquetesResultados.filter((r) =>
+    intencionFiltro === 'todas' ? true : r.paquete.intencion === intencionFiltro,
+  );
+
+  const procsConCambios: ProcEnriquecido[] = ordenado.filter(
+    (p) => (state.simulacion[p.id] ?? 0) !== 0,
+  );
 
   const handleOptimizar = () => {
     const r = optimizar(datos, config);
@@ -61,102 +86,9 @@ export function VistaSimulador() {
         <div>
           <h3 className="text-base font-bold text-slate-900">Simulador de mezcla</h3>
           <p className="text-sm text-slate-600 mt-0.5">
-            Ajusta los volúmenes próximos 3 meses por sub-procedimiento. Los KPIs y la comparación
-            de impacto se actualizan en vivo.
+            Compara qué llevas hoy contra escenarios alternativos. Aplica un paquete pre-armado, deja
+            que el optimizador sugiera, o ajusta procedimiento por procedimiento.
           </p>
-        </div>
-      </div>
-
-      {/* Optimizador */}
-      <div className="bg-white border border-indigo-200 rounded-lg p-4 mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900">Optimizador automático</h4>
-            <p className="text-xs text-slate-600 mt-0.5">
-              Sugiere los ajustes que mejor cumplen el objetivo dentro de los límites configurados.
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
-              Objetivo
-            </label>
-            <select
-              className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium"
-              value={config.objetivo}
-              onChange={(e) =>
-                setConfig({ ...config, objetivo: e.target.value as ObjetivoOptimizacion })
-              }
-            >
-              {Object.entries(OBJETIVO_LABELS).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
-              Máx. incremento
-            </label>
-            <select
-              className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium"
-              value={config.maxIncrementoPct}
-              onChange={(e) =>
-                setConfig({ ...config, maxIncrementoPct: parseFloat(e.target.value) })
-              }
-            >
-              <option value="0.5">+50%</option>
-              <option value="1.0">+100% (doble)</option>
-              <option value="1.5">+150%</option>
-              <option value="2.0">+200% (triple)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
-              Máx. reducción
-            </label>
-            <select
-              className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium"
-              value={config.maxReduccionPct}
-              onChange={(e) =>
-                setConfig({ ...config, maxReduccionPct: parseFloat(e.target.value) })
-              }
-            >
-              <option value="0">Sin reducir</option>
-              <option value="0.2">−20%</option>
-              <option value="0.3">−30%</option>
-              <option value="0.5">−50%</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={config.preservarComplejidadAlta}
-                onChange={(e) =>
-                  setConfig({ ...config, preservarComplejidadAlta: e.target.checked })
-                }
-                className="accent-indigo-600"
-              />
-              Preservar complejidad alta
-            </label>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button onClick={handleOptimizar}>Optimizar</Button>
-          {tieneSim && (
-            <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'RESET_SIM' })}>
-              Limpiar simulación
-            </Button>
-          )}
-          {ultimoResultado && (
-            <span className="text-xs text-slate-500">
-              {ultimoResultado.cambios} ajustes aplicados en {ultimoResultado.iteraciones}{' '}
-              iteraciones
-            </span>
-          )}
         </div>
       </div>
 
@@ -260,6 +192,232 @@ export function VistaSimulador() {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Cambios activos */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4 mb-5">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">Cambios activos en simulación</h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {tieneSim
+                ? `${procsConCambios.length} procedimiento${procsConCambios.length === 1 ? '' : 's'} con ajuste de volumen.`
+                : 'Aún no hay cambios. Aplica un paquete, usa el optimizador, o mueve los sliders.'}
+            </p>
+          </div>
+          {tieneSim && (
+            <Button variant="secondary" size="sm" onClick={() => dispatch({ type: 'RESET_SIM' })}>
+              Limpiar todo
+            </Button>
+          )}
+        </div>
+        {tieneSim && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {procsConCambios.map((p) => {
+              const delta = state.simulacion[p.id] ?? 0;
+              const subir = delta > 0;
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between bg-slate-50 rounded px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900 truncate">{p.nombre}</div>
+                    <div className="text-xs text-slate-500">
+                      Ticket {fmtMXN(p.ticket)} · Margen {fmtPct(p.margen)}
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      'font-semibold tabular-nums whitespace-nowrap ml-2',
+                      subir ? 'text-emerald-700' : 'text-red-700',
+                    )}
+                  >
+                    {subir ? '▲' : '▼'} {subir ? '+' : ''}
+                    {delta} → {p.casos + delta}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Paquetes pre-armados */}
+      <div className="bg-white border border-indigo-200 rounded-lg p-4 mb-5">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">Paquetes pre-armados</h4>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Aplicaciones de mezcla curadas según la intención. Click para ver el detalle y aplicarlo.
+            </p>
+          </div>
+          <div className="flex items-center gap-1 flex-wrap">
+            {(['todas', 'bajar', 'subir', 'margen'] as const).map((id) => (
+              <button
+                key={id}
+                onClick={() => setIntencionFiltro(id)}
+                className={cn(
+                  'px-2.5 py-1 text-xs font-semibold rounded border',
+                  intencionFiltro === id
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50',
+                )}
+              >
+                {id === 'todas' ? 'Todos' : INTENCION_LABELS[id]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {paquetesFiltrados.map((r) => {
+            const bajaMonto = r.deltaMontoMedio < 0;
+            const subeMargen = r.deltaMargen > 0;
+            return (
+              <div
+                key={r.paquete.id}
+                className="border border-slate-200 rounded-lg p-3 bg-white hover:border-indigo-300 hover:shadow-sm transition flex flex-col"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="font-semibold text-sm text-slate-900">{r.paquete.nombre}</div>
+                  <Badge tone={INTENCION_TONE[r.paquete.intencion]}>
+                    {INTENCION_LABELS[r.paquete.intencion]}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-600 leading-snug mb-3">{r.paquete.descripcion}</p>
+                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                  <div className="bg-slate-50 rounded p-2">
+                    <div className="text-slate-500 mb-0.5">Δ Monto medio</div>
+                    <div
+                      className={cn(
+                        'font-semibold tabular-nums',
+                        bajaMonto ? 'text-emerald-700' : 'text-red-700',
+                      )}
+                    >
+                      {bajaMonto ? '▼' : '▲'} {Math.abs(r.deltaMontoMedioPct * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-[10px] text-slate-500 tabular-nums">
+                      → {fmtMXN(r.kpiResultado.montoMedio)}
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded p-2">
+                    <div className="text-slate-500 mb-0.5">Δ Margen</div>
+                    <div
+                      className={cn(
+                        'font-semibold tabular-nums',
+                        subeMargen ? 'text-emerald-700' : 'text-red-700',
+                      )}
+                    >
+                      {subeMargen ? '▲' : '▼'} {Math.abs(r.deltaMargenPct * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-[10px] text-slate-500 tabular-nums">
+                      → {fmtMXNCompact(r.kpiResultado.totalMargen)}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-500 mb-2">
+                  Afecta {r.procsAfectados} procedimiento{r.procsAfectados === 1 ? '' : 's'}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-auto w-full"
+                  onClick={() => dispatch({ type: 'SET_SIM', sim: r.sim })}
+                >
+                  Aplicar este paquete
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Optimizador */}
+      <div className="bg-white border border-indigo-200 rounded-lg p-4 mb-5">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h4 className="text-sm font-bold text-slate-900">Optimizador automático</h4>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Sugiere los ajustes que mejor cumplen el objetivo dentro de los límites configurados.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+              Objetivo
+            </label>
+            <select
+              className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium"
+              value={config.objetivo}
+              onChange={(e) =>
+                setConfig({ ...config, objetivo: e.target.value as ObjetivoOptimizacion })
+              }
+            >
+              {Object.entries(OBJETIVO_LABELS).map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+              Máx. incremento
+            </label>
+            <select
+              className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium"
+              value={config.maxIncrementoPct}
+              onChange={(e) =>
+                setConfig({ ...config, maxIncrementoPct: parseFloat(e.target.value) })
+              }
+            >
+              <option value="0.5">+50%</option>
+              <option value="1.0">+100% (doble)</option>
+              <option value="1.5">+150%</option>
+              <option value="2.0">+200% (triple)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+              Máx. reducción
+            </label>
+            <select
+              className="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-2 text-sm font-medium"
+              value={config.maxReduccionPct}
+              onChange={(e) =>
+                setConfig({ ...config, maxReduccionPct: parseFloat(e.target.value) })
+              }
+            >
+              <option value="0">Sin reducir</option>
+              <option value="0.2">−20%</option>
+              <option value="0.3">−30%</option>
+              <option value="0.5">−50%</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.preservarComplejidadAlta}
+                onChange={(e) =>
+                  setConfig({ ...config, preservarComplejidadAlta: e.target.checked })
+                }
+                className="accent-indigo-600"
+              />
+              Preservar complejidad alta
+            </label>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button onClick={handleOptimizar}>Optimizar</Button>
+          {ultimoResultado && (
+            <span className="text-xs text-slate-500">
+              {ultimoResultado.cambios} ajustes aplicados en {ultimoResultado.iteraciones}{' '}
+              iteraciones
+            </span>
+          )}
         </div>
       </div>
 
