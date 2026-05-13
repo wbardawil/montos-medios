@@ -19,6 +19,9 @@ import type { PerfilAseguradora } from './data/perfiles';
 import type { Periodo, Simulacion } from './calc';
 
 export type TabId = 'mezcla' | 'candidatos' | 'simulador' | 'dashboard' | 'config';
+export type EspecialidadFiltro = EspecialidadId | 'todas';
+
+export const isTodasEspecialidades = (e: EspecialidadFiltro): e is 'todas' => e === 'todas';
 
 export interface ProcOverride {
   ticket?: number;
@@ -38,7 +41,7 @@ export interface Overrides {
 
 export interface AppState {
   aseguradora: AseguradoraId;
-  especialidad: EspecialidadId;
+  especialidad: EspecialidadFiltro;
   periodo: Periodo;
   tab: TabId;
   simulacion: Simulacion;
@@ -49,7 +52,7 @@ export const guaKey = (a: AseguradoraId, e: EspecialidadId) => `${a}:${e}`;
 
 export type Action =
   | { type: 'SET_ASEGURADORA'; value: AseguradoraId }
-  | { type: 'SET_ESPECIALIDAD'; value: EspecialidadId }
+  | { type: 'SET_ESPECIALIDAD'; value: EspecialidadFiltro }
   | { type: 'SET_PERIODO'; value: Periodo }
   | { type: 'SET_TAB'; value: TabId }
   | { type: 'UPDATE_SIM'; procId: string; delta: number }

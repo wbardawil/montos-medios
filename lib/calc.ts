@@ -1,5 +1,5 @@
 import type { AseguradoraId } from './data/aseguradoras';
-import type { EspecialidadId } from './data/especialidades';
+import { ESPECIALIDAD_IDS, type EspecialidadId } from './data/especialidades';
 import { GUA_REFERENCIA } from './data/gua';
 import { DEFAULT_PERFIL, PERFIL_ASEGURADORA, type PerfilAseguradora } from './data/perfiles';
 import { SUBPROCEDIMIENTOS, type SubProcedimiento } from './data/procedimientos';
@@ -24,6 +24,7 @@ export interface OverridesInput {
 }
 
 export interface ProcEnriquecido extends SubProcedimiento {
+  especialidadId: EspecialidadId;
   casos: number;
   ticket: number;
   margen: number;
@@ -105,6 +106,7 @@ export function generarDatos(
     const margen = Math.max(0.08, baseMargen + ((seed % 4) - 2) / 100);
     return {
       ...p,
+      especialidadId,
       casos,
       ticket,
       margen,
@@ -112,6 +114,20 @@ export function generarDatos(
       margen_total: casos * ticket * margen,
     };
   });
+}
+
+export type EspecialidadFiltroInput = EspecialidadId | 'todas';
+
+export function generarDatosFiltro(
+  aseguradoraId: AseguradoraId,
+  filtro: EspecialidadFiltroInput,
+  periodo: Periodo = '12m',
+  overrides?: OverridesInput,
+): ProcEnriquecido[] {
+  if (filtro === 'todas') {
+    return ESPECIALIDAD_IDS.flatMap((eid) => generarDatos(aseguradoraId, eid, periodo, overrides));
+  }
+  return generarDatos(aseguradoraId, filtro, periodo, overrides);
 }
 
 export function aplicarSimulacion(datos: ProcEnriquecido[], sim: Simulacion): ProcSimulado[] {

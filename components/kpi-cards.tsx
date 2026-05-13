@@ -4,7 +4,7 @@ import {
   aplicarSimulacion,
   calcImpactoVsGUA,
   calcKPIs,
-  generarDatos,
+  generarDatosFiltro,
 } from '@/lib/calc';
 import { useAppState } from '@/lib/state';
 import { fmtMXN, fmtMXNCompact, fmtPct } from '@/lib/format';
@@ -22,11 +22,14 @@ const SEVERIDAD_TAG: Record<string, string> = {
 
 export function KPICards() {
   const { state } = useAppState();
-  const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo, state.overrides);
+  const datos = generarDatosFiltro(state.aseguradora, state.especialidad, state.periodo, state.overrides);
   const datosSim = aplicarSimulacion(datos, state.simulacion);
   const kActual = calcKPIs(datos);
   const kSim = calcKPIs(datosSim, true);
-  const impacto = calcImpactoVsGUA(kActual, state.aseguradora, state.especialidad, state.overrides);
+  const esTodas = state.especialidad === 'todas';
+  const impacto = state.especialidad === 'todas'
+    ? { gua: 0, gap_abs: 0, gap_pct: 0, severidad: 'sin_gua' as const }
+    : calcImpactoVsGUA(kActual, state.aseguradora, state.especialidad, state.overrides);
   const hasSim = Object.values(state.simulacion).some((v) => v !== 0);
 
   const gapToneClass =
@@ -63,7 +66,9 @@ export function KPICards() {
             {impacto.severidad === 'sin_gua' ? '—' : fmtMXN(impacto.gua)}
           </div>
           <div className={cn('text-xs mt-1', gapToneClass)}>
-            {impacto.severidad === 'sin_gua' ? (
+            {esTodas ? (
+              <>GUA es por especialidad — selecciona una</>
+            ) : impacto.severidad === 'sin_gua' ? (
               <>Configura el GUA para esta combinación</>
             ) : (
               <>

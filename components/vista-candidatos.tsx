@@ -1,6 +1,7 @@
 'use client';
 
-import { calcKPIs, generarDatos, identificarCandidatos } from '@/lib/calc';
+import { ESPECIALIDADES } from '@/lib/data/especialidades';
+import { calcKPIs, generarDatosFiltro, identificarCandidatos } from '@/lib/calc';
 import { fmtMXNCompact, fmtPct } from '@/lib/format';
 import { useAppState } from '@/lib/state';
 import { Button } from './ui/button';
@@ -9,7 +10,13 @@ import { cn } from '@/lib/utils';
 
 export function VistaCandidatos() {
   const { state, dispatch } = useAppState();
-  const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo, state.overrides);
+  const esTodas = state.especialidad === 'todas';
+  const datos = generarDatosFiltro(
+    state.aseguradora,
+    state.especialidad,
+    state.periodo,
+    state.overrides,
+  );
   const candidatos = identificarCandidatos(datos);
   const kpis = calcKPIs(datos);
 
@@ -36,7 +43,7 @@ export function VistaCandidatos() {
             const pctDelta = (deltaMontoMedio / kpis.montoMedio) * 100;
             return (
               <div
-                key={p.id}
+                key={`${p.especialidadId}:${p.id}`}
                 className="border border-slate-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition bg-white"
               >
                 <div className="flex items-start justify-between mb-2">
@@ -45,6 +52,11 @@ export function VistaCandidatos() {
                       #{i + 1} candidato
                     </div>
                     <div className="font-semibold text-slate-900 mt-1">{p.nombre}</div>
+                    {esTodas && (
+                      <div className="text-[10px] text-slate-600 mt-0.5">
+                        {ESPECIALIDADES[p.especialidadId]}
+                      </div>
+                    )}
                     <div className="text-[10px] text-slate-500 tabular-nums mt-0.5">
                       CIE-9 <span className="font-semibold text-slate-700">{p.cie9}</span>
                       <span className="text-slate-300 mx-1">·</span>

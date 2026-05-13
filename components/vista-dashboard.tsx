@@ -130,12 +130,18 @@ export function VistaDashboard() {
               Comparado contra GUA de la aseguradora. Click en una barra para abrir esa especialidad.
             </p>
           </div>
-          <div className="flex items-center gap-3 text-xs text-slate-600">
+          <div className="flex items-center gap-3 text-xs text-slate-600 flex-wrap">
             <span className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 bg-indigo-600 rounded-sm" /> Monto medio
+              <span className="inline-block w-3 h-3 bg-emerald-500 rounded-sm" /> ≤ GUA
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-3 h-3 bg-amber-400 rounded-sm" /> GUA
+              <span className="inline-block w-3 h-3 bg-amber-500 rounded-sm" /> 0–15% sobre GUA
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-3 bg-red-600 rounded-sm" /> &gt;15% sobre GUA
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-3 bg-amber-400 rounded-sm" /> GUA referencia
             </span>
           </div>
         </div>
@@ -163,14 +169,24 @@ export function VistaDashboard() {
               radius={[4, 4, 0, 0]}
               cursor="pointer"
             >
-              {porEspecialidad.map((entry) => (
-                <Cell
-                  key={entry.especialidadId}
-                  onClick={() =>
-                    dispatch({ type: 'SET_ESPECIALIDAD', value: entry.especialidadId })
-                  }
-                />
-              ))}
+              {porEspecialidad.map((entry) => {
+                let color = '#4f46e5';
+                if (entry.gua > 0) {
+                  const ratio = entry.montoMedio / entry.gua;
+                  if (ratio > 1.15) color = '#dc2626';
+                  else if (ratio > 1.0) color = '#f59e0b';
+                  else color = '#10b981';
+                }
+                return (
+                  <Cell
+                    key={entry.especialidadId}
+                    fill={color}
+                    onClick={() =>
+                      dispatch({ type: 'SET_ESPECIALIDAD', value: entry.especialidadId })
+                    }
+                  />
+                );
+              })}
             </Bar>
             <Bar dataKey="gua" fill="#fbbf24" name="GUA" radius={[4, 4, 0, 0]} />
           </BarChart>

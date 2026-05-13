@@ -1,8 +1,8 @@
 'use client';
 
 import type { AseguradoraId } from '@/lib/data/aseguradoras';
-import { ESPECIALIDADES, type EspecialidadId } from '@/lib/data/especialidades';
-import { useAppState, useAseguradoras } from '@/lib/state';
+import { ESPECIALIDADES } from '@/lib/data/especialidades';
+import { useAppState, useAseguradoras, type EspecialidadFiltro } from '@/lib/state';
 import { Button } from './ui/button';
 import type { Periodo } from '@/lib/calc';
 
@@ -34,11 +34,13 @@ export function FilterBar() {
             value={state.aseguradora}
             onChange={(e) => dispatch({ type: 'SET_ASEGURADORA', value: e.target.value as AseguradoraId })}
           >
-            {Object.entries(aseguradoras).map(([id, a]) => (
-              <option key={id} value={id}>
-                {a.nombre}
-              </option>
-            ))}
+            {Object.entries(aseguradoras)
+              .sort(([, a], [, b]) => a.nombre.localeCompare(b.nombre, 'es'))
+              .map(([id, a]) => (
+                <option key={id} value={id}>
+                  {a.nombre}
+                </option>
+              ))}
           </select>
         </div>
         <div className="flex-1 min-w-[200px]">
@@ -49,13 +51,18 @@ export function FilterBar() {
             id="sel-especialidad"
             className={SELECT_CLASS}
             value={state.especialidad}
-            onChange={(e) => dispatch({ type: 'SET_ESPECIALIDAD', value: e.target.value as EspecialidadId })}
+            onChange={(e) =>
+              dispatch({ type: 'SET_ESPECIALIDAD', value: e.target.value as EspecialidadFiltro })
+            }
           >
-            {Object.entries(ESPECIALIDADES).map(([id, nombre]) => (
-              <option key={id} value={id}>
-                {nombre}
-              </option>
-            ))}
+            <option value="todas">Todas las especialidades</option>
+            {Object.entries(ESPECIALIDADES)
+              .sort(([, a], [, b]) => a.localeCompare(b, 'es'))
+              .map(([id, nombre]) => (
+                <option key={id} value={id}>
+                  {nombre}
+                </option>
+              ))}
           </select>
         </div>
         <div className="flex-1 min-w-[160px]">

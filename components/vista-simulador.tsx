@@ -6,7 +6,7 @@ import {
   aplicarSimulacion,
   calcImpactoVsGUA,
   calcKPIs,
-  generarDatos,
+  generarDatosFiltro,
   type ProcEnriquecido,
 } from '@/lib/calc';
 import {
@@ -57,12 +57,22 @@ export function VistaSimulador() {
   } | null>(null);
   const [intencionFiltro, setIntencionFiltro] = useState<IntencionPaquete | 'todas'>('todas');
 
-  const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo, state.overrides);
+  const esTodas = state.especialidad === 'todas';
+  const datos = generarDatosFiltro(
+    state.aseguradora,
+    state.especialidad,
+    state.periodo,
+    state.overrides,
+  );
   const datosSim = aplicarSimulacion(datos, state.simulacion);
   const kActual = calcKPIs(datos);
   const kSim = calcKPIs(datosSim, true);
-  const impactoActual = calcImpactoVsGUA(kActual, state.aseguradora, state.especialidad, state.overrides);
-  const impactoSim = calcImpactoVsGUA(kSim, state.aseguradora, state.especialidad, state.overrides);
+  const impactoActual = state.especialidad === 'todas'
+    ? { gua: 0, gap_abs: 0, gap_pct: 0, severidad: 'sin_gua' as const }
+    : calcImpactoVsGUA(kActual, state.aseguradora, state.especialidad, state.overrides);
+  const impactoSim = state.especialidad === 'todas'
+    ? { gua: 0, gap_abs: 0, gap_pct: 0, severidad: 'sin_gua' as const }
+    : calcImpactoVsGUA(kSim, state.aseguradora, state.especialidad, state.overrides);
   const ordenado = [...datos].sort((a, b) => b.monto_total - a.monto_total);
   const tieneSim = Object.values(state.simulacion).some((v) => v !== 0);
 
@@ -511,7 +521,10 @@ export function VistaSimulador() {
           </div>
           <p className="text-sm leading-relaxed">
             Con la mezcla propuesta, el monto medio de{' '}
-            {ESPECIALIDADES[state.especialidad].toLowerCase()} con {nombreAseguradora}{' '}
+            {state.especialidad === 'todas'
+              ? 'todas las especialidades'
+              : ESPECIALIDADES[state.especialidad].toLowerCase()}{' '}
+            con {nombreAseguradora}{' '}
             {kSim.montoMedio < kActual.montoMedio ? 'baja' : 'sube'} de{' '}
             {fmtMXN(kActual.montoMedio)} a {fmtMXN(kSim.montoMedio)} (
             {(((kSim.montoMedio - kActual.montoMedio) / kActual.montoMedio) * 100).toFixed(1)}%),

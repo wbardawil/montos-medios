@@ -1,7 +1,7 @@
 'use client';
 
 import { ESPECIALIDADES } from '@/lib/data/especialidades';
-import { calcKPIs, generarDatos } from '@/lib/calc';
+import { calcKPIs, generarDatosFiltro } from '@/lib/calc';
 import { fmtMXN, fmtMXNCompact, fmtPct } from '@/lib/format';
 import { useAppState, useAseguradoras } from '@/lib/state';
 import { Badge } from './ui/badge';
@@ -13,7 +13,17 @@ export function VistaMezcla() {
   const { state } = useAppState();
   const aseguradoras = useAseguradoras();
   const nombreAseguradora = aseguradoras[state.aseguradora]?.nombre ?? state.aseguradora;
-  const datos = generarDatos(state.aseguradora, state.especialidad, state.periodo, state.overrides);
+  const esTodas = state.especialidad === 'todas';
+  const especialidadLabel =
+    state.especialidad === 'todas'
+      ? 'Todas las especialidades'
+      : ESPECIALIDADES[state.especialidad];
+  const datos = generarDatosFiltro(
+    state.aseguradora,
+    state.especialidad,
+    state.periodo,
+    state.overrides,
+  );
   const kpis = calcKPIs(datos);
   const ordenado = [...datos].sort((a, b) => b.monto_total - a.monto_total);
 
@@ -23,7 +33,7 @@ export function VistaMezcla() {
         <div>
           <h3 className="text-base font-bold text-slate-900">Mezcla de portafolio</h3>
           <p className="text-sm text-slate-600">
-            {nombreAseguradora} · {ESPECIALIDADES[state.especialidad]} · {state.periodo}
+            {nombreAseguradora} · {especialidadLabel} · {state.periodo}
           </p>
         </div>
         <div className="text-xs text-slate-500">Ordenado por contribución al monto total</div>
@@ -33,6 +43,7 @@ export function VistaMezcla() {
           <thead className="bg-slate-50 border-y border-slate-200 text-xs uppercase tracking-wide text-slate-600">
             <tr>
               <th className="text-left px-5 py-3 font-semibold">Sub-procedimiento</th>
+              {esTodas && <th className="text-left px-3 py-3 font-semibold">Especialidad</th>}
               <th className="text-left px-3 py-3 font-semibold">CIE-9 / CIE-10</th>
               <th className="text-center px-3 py-3 font-semibold">Complejidad</th>
               <th className="text-right px-3 py-3 font-semibold">Casos</th>
@@ -48,8 +59,13 @@ export function VistaMezcla() {
               const pctVol = (p.casos / kpis.totalCasos) * 100;
               const pctMonto = (p.monto_total / kpis.totalMonto) * 100;
               return (
-                <tr key={p.id} className="hover:bg-slate-50">
+                <tr key={`${p.especialidadId}:${p.id}`} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-medium text-slate-900">{p.nombre}</td>
+                  {esTodas && (
+                    <td className="px-3 py-3 text-xs text-slate-600 whitespace-nowrap">
+                      {ESPECIALIDADES[p.especialidadId]}
+                    </td>
+                  )}
                   <td className="px-3 py-3 text-xs text-slate-500 tabular-nums whitespace-nowrap">
                     <span className="font-semibold text-slate-700">{p.cie9}</span>
                     <span className="text-slate-300 mx-1">·</span>
@@ -82,8 +98,9 @@ export function VistaMezcla() {
           <tfoot className="bg-slate-50 border-t border-slate-200 font-semibold">
             <tr>
               <td className="px-5 py-3 text-slate-700">
-                Total {ESPECIALIDADES[state.especialidad].toLowerCase()}
+                Total {especialidadLabel.toLowerCase()}
               </td>
+              {esTodas && <td />}
               <td />
               <td />
               <td className="px-3 py-3 text-right tabular-nums">{kpis.totalCasos}</td>

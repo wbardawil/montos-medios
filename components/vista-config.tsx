@@ -102,7 +102,8 @@ function contarCambios(draft: Overrides, base: Overrides): number {
 export function VistaConfig() {
   const { state, dispatch } = useAppState();
   const aseguradoras = useAseguradoras();
-  const especialidadEditando: EspecialidadId = state.especialidad;
+  const especialidadEditando: EspecialidadId =
+    state.especialidad === 'todas' ? ESPECIALIDAD_IDS[0] : state.especialidad;
   const aseguradoraEditando: AseguradoraId = state.aseguradora;
   const aseguradoraEditandoNombre =
     aseguradoras[aseguradoraEditando]?.nombre ?? aseguradoraEditando;
@@ -127,13 +128,20 @@ export function VistaConfig() {
     state.overrides,
   ]);
 
-  const procs = SUBPROCEDIMIENTOS[especialidadEditando];
+  const procs = [...SUBPROCEDIMIENTOS[especialidadEditando]].sort((a, b) =>
+    a.nombre.localeCompare(b.nombre, 'es'),
+  );
   const numOverridesProc = Object.keys(state.overrides.procedimientos).length;
   const numOverridesGua = Object.keys(state.overrides.gua).length;
   const numAsegCustom = Object.keys(state.overrides.aseguradorasCustom).length;
   const hayOverridesAplicados = numOverridesProc + numOverridesGua + numAsegCustom > 0;
 
-  const customAsegEntries = Object.entries(draft.aseguradorasCustom);
+  const customAsegEntries = Object.entries(draft.aseguradorasCustom).sort(([, a], [, b]) =>
+    a.nombre.localeCompare(b.nombre, 'es'),
+  );
+  const especialidadesOrdenadas = [...ESPECIALIDAD_IDS].sort((a, b) =>
+    ESPECIALIDADES[a].localeCompare(ESPECIALIDADES[b], 'es'),
+  );
 
   const setProcDraft = (procId: string, field: 'ticket' | 'margen', value: number | undefined) => {
     setDraft((d) => {
@@ -576,7 +584,7 @@ export function VistaConfig() {
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {ESPECIALIDAD_IDS.map((espId) => {
+          {especialidadesOrdenadas.map((espId) => {
             const baseGua = aseguradoraEsCustom
               ? undefined
               : GUA_REFERENCIA[espId][aseguradoraEditando];
